@@ -1,0 +1,422 @@
+{
+    "info": {
+        "_postman_id": "sentient-api-collection",
+        "name": "Sentient API",
+        "description": "Collection for testing Sentient Learning Platform API endpoints",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [{
+            "name": "Authentication",
+            "item": [{
+                    "name": "Register",
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"username\": \"testuser\",\n    \"email\": \"test@example.com\",\n    \"password\": \"password123\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/auth/register",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "auth", "register"]
+                        },
+                        "description": "Register a new user account"
+                    },
+                    "response": [{
+                        "name": "Success Response",
+                        "originalRequest": {
+                            "method": "POST",
+                            "header": [],
+                            "body": {
+                                "mode": "raw",
+                                "raw": "{\n    \"username\": \"testuser\",\n    \"email\": \"test@example.com\",\n    \"password\": \"password123\"\n}"
+                            },
+                            "url": {
+                                "raw": "{{base_url}}/api/auth/register"
+                            }
+                        },
+                        "status": "Created",
+                        "code": 201,
+                        "_postman_previewlanguage": "json",
+                        "header": [],
+                        "cookie": [],
+                        "body": "{\n    \"status\": \"success\",\n    \"message\": \"User created successfully\",\n    \"user\": {\n        \"id\": 1,\n        \"username\": \"testuser\",\n        \"email\": \"test@example.com\",\n        \"created_at\": \"2024-03-14T12:00:00.000000Z\",\n        \"updated_at\": \"2024-03-14T12:00:00.000000Z\"\n    },\n    \"authorization\": {\n        \"token\": \"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...\",\n        \"type\": \"bearer\"\n    }\n}"
+                    }]
+                },
+                {
+                    "name": "Login",
+                    "event": [{
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "var jsonData = pm.response.json();",
+                                "if (jsonData.authorization && jsonData.authorization.token) {",
+                                "    pm.environment.set(\"auth_token\", jsonData.authorization.token);",
+                                "}"
+                            ],
+                            "type": "text/javascript"
+                        }
+                    }],
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"email\": \"test@example.com\",\n    \"password\": \"password123\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/auth/login",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "auth", "login"]
+                        },
+                        "description": "Login with email and password"
+                    },
+                    "response": [{
+                        "name": "Success Response",
+                        "originalRequest": {
+                            "method": "POST",
+                            "header": [],
+                            "body": {
+                                "mode": "raw",
+                                "raw": "{\n    \"email\": \"test@example.com\",\n    \"password\": \"password123\"\n}"
+                            },
+                            "url": {
+                                "raw": "{{base_url}}/api/auth/login"
+                            }
+                        },
+                        "status": "OK",
+                        "code": 200,
+                        "_postman_previewlanguage": "json",
+                        "header": [],
+                        "cookie": [],
+                        "body": "{\n    \"status\": \"success\",\n    \"message\": \"Login successful\",\n    \"user\": {\n        \"id\": 1,\n        \"username\": \"testuser\",\n        \"email\": \"test@example.com\",\n        \"created_at\": \"2024-03-14T12:00:00.000000Z\",\n        \"updated_at\": \"2024-03-14T12:00:00.000000Z\"\n    },\n    \"authorization\": {\n        \"token\": \"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...\",\n        \"type\": \"bearer\"\n    }\n}"
+                    }]
+                },
+                {
+                    "name": "Logout",
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Authorization",
+                            "value": "Bearer {{auth_token}}"
+                        }],
+                        "url": {
+                            "raw": "{{base_url}}/api/auth/logout",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "auth", "logout"]
+                        },
+                        "description": "Logout and invalidate the current token"
+                    },
+                    "response": [{
+                        "name": "Success Response",
+                        "originalRequest": {
+                            "method": "POST",
+                            "header": [],
+                            "url": {
+                                "raw": "{{base_url}}/api/auth/logout"
+                            }
+                        },
+                        "status": "OK",
+                        "code": 200,
+                        "_postman_previewlanguage": "json",
+                        "header": [],
+                        "cookie": [],
+                        "body": "{\n    \"status\": \"success\",\n    \"message\": \"Successfully logged out\"\n}"
+                    }]
+                },
+                {
+                    "name": "Refresh Token",
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Authorization",
+                            "value": "Bearer {{auth_token}}"
+                        }],
+                        "url": {
+                            "raw": "{{base_url}}/api/auth/refresh",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "auth", "refresh"]
+                        },
+                        "description": "Refresh the current JWT token"
+                    },
+                    "response": [{
+                        "name": "Success Response",
+                        "originalRequest": {
+                            "method": "POST",
+                            "header": [],
+                            "url": {
+                                "raw": "{{base_url}}/api/auth/refresh"
+                            }
+                        },
+                        "status": "OK",
+                        "code": 200,
+                        "_postman_previewlanguage": "json",
+                        "header": [],
+                        "cookie": [],
+                        "body": "{\n    \"status\": \"success\",\n    \"user\": {\n        \"id\": 1,\n        \"username\": \"testuser\",\n        \"email\": \"test@example.com\"\n    },\n    \"authorization\": {\n        \"token\": \"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...\",\n        \"type\": \"bearer\"\n    }\n}"
+                    }]
+                }
+            ]
+        },
+        {
+            "name": "Profile",
+            "item": [{
+                    "name": "Get Profile",
+                    "request": {
+                        "method": "GET",
+                        "header": [{
+                            "key": "Authorization",
+                            "value": "Bearer {{auth_token}}"
+                        }],
+                        "url": {
+                            "raw": "{{base_url}}/api/auth/profile",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "auth", "profile"]
+                        },
+                        "description": "Get the authenticated user's profile"
+                    },
+                    "response": [{
+                        "name": "Success Response",
+                        "originalRequest": {
+                            "method": "GET",
+                            "header": [],
+                            "url": {
+                                "raw": "{{base_url}}/api/auth/profile"
+                            }
+                        },
+                        "status": "OK",
+                        "code": 200,
+                        "_postman_previewlanguage": "json",
+                        "header": [],
+                        "cookie": [],
+                        "body": "{\n    \"status\": \"success\",\n    \"data\": {\n        \"user\": {\n            \"id\": 1,\n            \"username\": \"testuser\",\n            \"email\": \"test@example.com\"\n        },\n        \"profile\": {\n            \"id\": 1,\n            \"user_id\": 1,\n            \"full_name\": \"Test User\",\n            \"avatar\": \"default.png\"\n        }\n    }\n}"
+                    }]
+                },
+                {
+                    "name": "Update Avatar",
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Authorization",
+                            "value": "Bearer {{auth_token}}"
+                        }],
+                        "body": {
+                            "mode": "formdata",
+                            "formdata": [{
+                                "key": "avatar",
+                                "type": "file",
+                                "src": "/path/to/avatar.jpg"
+                            }]
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/auth/avatar",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "auth", "avatar"]
+                        },
+                        "description": "Update the user's avatar image"
+                    },
+                    "response": [{
+                        "name": "Success Response",
+                        "originalRequest": {
+                            "method": "POST",
+                            "header": [],
+                            "body": {
+                                "mode": "formdata",
+                                "formdata": [{
+                                    "key": "avatar",
+                                    "type": "file",
+                                    "src": "/path/to/avatar.jpg"
+                                }]
+                            },
+                            "url": {
+                                "raw": "{{base_url}}/api/auth/avatar"
+                            }
+                        },
+                        "status": "OK",
+                        "code": 200,
+                        "_postman_previewlanguage": "json",
+                        "header": [],
+                        "cookie": [],
+                        "body": "{\n    \"status\": \"success\",\n    \"message\": \"Avatar updated successfully\",\n    \"data\": {\n        \"avatar\": \"1234567890.jpg\"\n    }\n}"
+                    }]
+                }
+            ]
+        },
+        {
+            "name": "Courses",
+            "item": [{
+                    "name": "List Courses",
+                    "request": {
+                        "method": "GET",
+                        "header": [{
+                            "key": "Authorization",
+                            "value": "Bearer {{auth_token}}"
+                        }],
+                        "url": {
+                            "raw": "{{base_url}}/api/courses",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "courses"]
+                        },
+                        "description": "Get list of all available courses"
+                    },
+                    "response": [{
+                        "name": "Success Response",
+                        "originalRequest": {
+                            "method": "GET",
+                            "header": [],
+                            "url": {
+                                "raw": "{{base_url}}/api/courses"
+                            }
+                        },
+                        "status": "OK",
+                        "code": 200,
+                        "_postman_previewlanguage": "json",
+                        "header": [],
+                        "cookie": [],
+                        "body": "{\n    \"status\": \"success\",\n    \"data\": [\n        {\n            \"id\": 1,\n            \"title\": \"Flutter Development Fundamentals\",\n            \"description\": \"Learn the basics of Flutter development\",\n            \"lessons\": [\n                {\n                    \"id\": 1,\n                    \"title\": \"Introduction to Flutter\",\n                    \"type\": \"video\",\n                    \"duration\": 30,\n                    \"is_free\": true\n                }\n            ]\n        }\n    ]\n}"
+                    }]
+                },
+                {
+                    "name": "Enroll in Course",
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                            "key": "Authorization",
+                            "value": "Bearer {{auth_token}}"
+                        }],
+                        "url": {
+                            "raw": "{{base_url}}/api/courses/1/enroll",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "courses", "1", "enroll"]
+                        },
+                        "description": "Enroll the authenticated user in a course"
+                    },
+                    "response": [{
+                        "name": "Success Response",
+                        "originalRequest": {
+                            "method": "POST",
+                            "header": [],
+                            "url": {
+                                "raw": "{{base_url}}/api/courses/1/enroll"
+                            }
+                        },
+                        "status": "OK",
+                        "code": 200,
+                        "_postman_previewlanguage": "json",
+                        "header": [],
+                        "cookie": [],
+                        "body": "{\n    \"status\": \"success\",\n    \"message\": \"Successfully enrolled in course\",\n    \"data\": {\n        \"course\": {\n            \"id\": 1,\n            \"title\": \"Flutter Development Fundamentals\"\n        },\n        \"enrollment\": {\n            \"status\": \"in_progress\",\n            \"progress\": 0\n        }\n    }\n}"
+                    }]
+                },
+                {
+                    "name": "Get Course Progress",
+                    "request": {
+                        "method": "GET",
+                        "header": [{
+                            "key": "Authorization",
+                            "value": "Bearer {{auth_token}}"
+                        }],
+                        "url": {
+                            "raw": "{{base_url}}/api/courses/1/progress",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "courses", "1", "progress"]
+                        },
+                        "description": "Get the authenticated user's progress in a course"
+                    },
+                    "response": [{
+                        "name": "Success Response",
+                        "originalRequest": {
+                            "method": "GET",
+                            "header": [],
+                            "url": {
+                                "raw": "{{base_url}}/api/courses/1/progress"
+                            }
+                        },
+                        "status": "OK",
+                        "code": 200,
+                        "_postman_previewlanguage": "json",
+                        "header": [],
+                        "cookie": [],
+                        "body": "{\n    \"status\": \"success\",\n    \"data\": {\n        \"course\": {\n            \"id\": 1,\n            \"title\": \"Flutter Development Fundamentals\"\n        },\n        \"enrollment\": {\n            \"status\": \"in_progress\",\n            \"progress\": 33.33\n        }\n    }\n}"
+                    }]
+                },
+                {
+                    "name": "Update Lesson Progress",
+                    "request": {
+                        "method": "POST",
+                        "header": [{
+                                "key": "Authorization",
+                                "value": "Bearer {{auth_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"lesson_id\": 1,\n    \"status\": \"completed\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/courses/1/progress",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "courses", "1", "progress"]
+                        },
+                        "description": "Update the progress of a lesson in a course"
+                    },
+                    "response": [{
+                        "name": "Success Response",
+                        "originalRequest": {
+                            "method": "POST",
+                            "header": [],
+                            "body": {
+                                "mode": "raw",
+                                "raw": "{\n    \"lesson_id\": 1,\n    \"status\": \"completed\"\n}"
+                            },
+                            "url": {
+                                "raw": "{{base_url}}/api/courses/1/progress"
+                            }
+                        },
+                        "status": "OK",
+                        "code": 200,
+                        "_postman_previewlanguage": "json",
+                        "header": [],
+                        "cookie": [],
+                        "body": "{\n    \"status\": \"success\",\n    \"message\": \"Progress updated successfully\",\n    \"data\": {\n        \"course\": {\n            \"id\": 1,\n            \"title\": \"Flutter Development Fundamentals\"\n        },\n        \"enrollment\": {\n            \"status\": \"in_progress\",\n            \"progress\": 33.33\n        }\n    }\n}"
+                    }]
+                }
+            ]
+        }
+    ],
+    "event": [{
+            "listen": "prerequest",
+            "script": {
+                "type": "text/javascript",
+                "exec": [
+                    ""
+                ]
+            }
+        },
+        {
+            "listen": "test",
+            "script": {
+                "type": "text/javascript",
+                "exec": [
+                    ""
+                ]
+            }
+        }
+    ],
+    "variable": [{
+        "key": "base_url",
+        "value": "http://localhost:8000",
+        "type": "string"
+    }]
+}

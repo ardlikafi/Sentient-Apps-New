@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consume Course API Example</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f8fb;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .container {
+            max-width: 700px;
+            margin: 40px auto;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px #0001;
+            padding: 32px;
+        }
+        
+        h1 {
+            color: #0F52BA;
+        }
+        
+        .course-list {
+            margin-top: 24px;
+        }
+        
+        .course-card {
+            background: #D6E5F2;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 4px #0001;
+        }
+        
+        .course-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #000A26;
+        }
+        
+        .course-desc {
+            margin: 8px 0;
+            color: #333;
+        }
+        
+        .course-meta {
+            font-size: 0.95em;
+            color: #0F52BA;
+        }
+        
+        .error {
+            color: red;
+            margin-top: 16px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Daftar Course (Consume API)</h1>
+        <div id="course-list" class="course-list"></div>
+        <div id="error" class="error"></div>
+    </div>
+    <script>
+        // Ganti baseUrl sesuai backend Anda
+        const baseUrl = 'http://192.168.1.5:8000/api';
+        async function fetchCourses() {
+            try {
+                const res = await fetch(`${baseUrl}/courses`);
+                if (!res.ok) throw new Error('Gagal fetch data: ' + res.status);
+                const data = await res.json();
+                // Jika response berupa array langsung
+                const courses = Array.isArray(data) ? data : (data.data || []);
+                renderCourses(courses);
+            } catch (err) {
+                document.getElementById('error').textContent = err;
+            }
+        }
+
+        function renderCourses(courses) {
+            const list = document.getElementById('course-list');
+            if (!courses.length) {
+                list.innerHTML = '<p>Tidak ada course ditemukan.</p>';
+                return;
+            }
+            list.innerHTML = courses.map(course => `
+        <div class="course-card">
+          <div class="course-title">${course.title || '-'} (${course.category || '-'})</div>
+          <div class="course-desc">${course.description || ''}</div>
+          <div class="course-meta">Harga: ${course.price == 0 ? 'Gratis' : 'Rp. ' + course.price} | Rating: ${course.rating || '-'} (${course.reviewCount || 0} review)</div>
+        </div>
+      `).join('');
+        }
+        fetchCourses();
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consume Course API Example</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f8fb;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .container {
+            max-width: 700px;
+            margin: 40px auto;
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 4px 24px #0002;
+            padding: 32px;
+        }
+        
+        h1 {
+            color: #0F52BA;
+        }
+        
+        .course-list {
+            margin-top: 24px;
+        }
+        
+        .course-card {
+            background: #D6E5F2;
+            border-radius: 16px;
+            padding: 0 0 16px 0;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 12px #0001;
+            display: flex;
+            flex-direction: row;
+            align-items: flex-start;
+            transition: box-shadow 0.2s;
+            border: 2px solid #A6C6D8;
+        }
+        
+        .course-card:hover {
+            box-shadow: 0 6px 24px #0F52BA22;
+            border-color: #0F52BA;
+        }
+        
+        .course-thumb {
+            width: 160px;
+            height: 100px;
+            border-radius: 12px 0 0 12px;
+            object-fit: cover;
+            background: #fff;
+            position: relative;
+            margin: 16px 0 16px 16px;
+            box-shadow: 0 2px 8px #0001;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .play-btn {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(15, 82, 186, 0.85);
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 8px #0002;
+            border: 2px solid #fff;
+        }
+        
+        .play-btn svg {
+            fill: #fff;
+            width: 28px;
+            height: 28px;
+        }
+        
+        .course-info {
+            flex: 1;
+            padding: 16px 20px 0 20px;
+        }
+        
+        .course-title {
+            font-size: 1.15em;
+            font-weight: bold;
+            color: #000A26;
+            margin-bottom: 4px;
+        }
+        
+        .course-desc {
+            margin: 6px 0 10px 0;
+            color: #333;
+            font-size: 0.98em;
+        }
+        
+        .course-meta {
+            font-size: 0.97em;
+            color: #0F52BA;
+            margin-bottom: 6px;
+        }
+        
+        .yt-modal-bg {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .yt-modal-content {
+            background: #fff;
+            border-radius: 16px;
+            padding: 0;
+            box-shadow: 0 8px 32px #0005;
+            max-width: 90vw;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .yt-modal-content iframe {
+            border-radius: 16px 16px 0 0;
+        }
+        
+        .yt-modal-close {
+            align-self: flex-end;
+            margin: 8px 16px 0 0;
+            font-size: 1.5em;
+            color: #0F52BA;
+            cursor: pointer;
+        }
+        
+        .error {
+            color: red;
+            margin-top: 16px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Daftar Course (Consume API)</h1>
+        <div id="course-list" class="course-list"></div>
+        <div id="error" class="error"></div>
+    </div>
+    <script>
+        // Ganti baseUrl sesuai backend Anda
+        const baseUrl = 'http://192.168.1.5:8000/api';
+        async function fetchCourses() {
+            try {
+                const res = await fetch(`${baseUrl}/courses`);
+                if (!res.ok) throw new Error('Gagal fetch data: ' + res.status);
+                const data = await res.json();
+                // Jika response berupa array langsung
+                const courses = Array.isArray(data) ? data : (data.data || []);
+                renderCourses(courses);
+            } catch (err) {
+                document.getElementById('error').textContent = err;
+            }
+        }
+
+        function renderCourses(courses) {
+            const list = document.getElementById('course-list');
+            if (!courses.length) {
+                list.innerHTML = '<p>Tidak ada course ditemukan.</p>';
+                return;
+            }
+            list.innerHTML = courses.map(course => {
+                let videoId = null;
+                let thumbUrl = 'https://img.youtube.com/vi/NAIQyoPcjNM/0.jpg';
+                if (course.youtube_url) {
+                    const patterns = [
+                        /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([\w-]{11})/,
+                        /[?&]v=([\w-]{11})/,
+                        /\/embed\/([\w-]{11})/,
+                        /youtu\.be\/([\w-]{11})/
+                    ];
+                    for (const pattern of patterns) {
+                        const match = course.youtube_url.match(pattern);
+                        if (match && match[1]) {
+                            videoId = match[1];
+                            break;
+                        }
+                    }
+                    if (videoId) {
+                        thumbUrl = `https://img.youtube.com/vi/${videoId}/0.jpg`;
+                    }
+                }
+                // Card HTML
+                return `
+                    <div class="course-card">
+                        <div class="course-thumb" onclick="showYoutubeModal('${videoId ? videoId : ''}')">
+                            <img src="${thumbUrl}" alt="Thumbnail" style="width:100%;height:100%;border-radius:12px 0 0 12px;object-fit:cover;">
+                            <div class="play-btn">
+                                <svg viewBox="0 0 50 50"><polygon points="15,10 40,25 15,40"/></svg>
+                            </div>
+                        </div>
+                        <div class="course-info">
+                            <div class="course-title">${course.title || '-'} (${course.category || '-'})</div>
+                            <div class="course-desc">${course.description || ''}</div>
+                            <div class="course-meta">Harga: ${course.price == 0 ? 'Gratis' : 'Rp. ' + course.price} | Rating: ${course.rating || '-'} (${course.reviewCount || 0} review)</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Modal YouTube
+        window.showYoutubeModal = function(videoId) {
+            if (!videoId) return;
+            const modal = document.createElement('div');
+            modal.className = 'yt-modal-bg';
+            modal.innerHTML = `
+                <div class="yt-modal-content">
+                    <span class="yt-modal-close" onclick="document.body.removeChild(this.parentNode.parentNode)">&times;</span>
+                    <iframe width="560" height="315" src="https://www.youtube.com/embed/${videoId}?autoplay=1" frameborder="0" allowfullscreen></iframe>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        fetchCourses();
+    </script>
+</body>
+
+</html>
