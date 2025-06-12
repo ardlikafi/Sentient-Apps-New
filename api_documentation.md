@@ -73,4 +73,134 @@ Future<void> fetchCourses() async {
 
 ### 4. Catatan
 - Endpoint ini dapat diakses siapa saja tanpa autentikasi.
-- Response berupa array JSON berisi data course. 
+- Response berupa array JSON berisi data course.
+
+## Contoh Penggunaan JWT di Postman
+
+### 1. Register User (POST)
+- **URL:** `http://127.0.0.1:8000/api/register`
+- **Body (JSON):**
+```json
+{
+  "username": "user1",
+  "email": "user1@email.com",
+  "password": "password",
+  "password_confirmation": "password"
+}
+```
+- **Response:** Akan mendapatkan token JWT di field `token`.
+
+### 2. Login User (POST)
+- **URL:** `http://127.0.0.1:8000/api/login`
+- **Body (JSON):**
+```json
+{
+  "email": "user1@email.com",
+  "password": "password"
+}
+```
+- **Response:** Akan mendapatkan token JWT di field `token`.
+
+### 3. Akses Endpoint Terproteksi (GET)
+- **URL:** `http://127.0.0.1:8000/api/profile` (atau endpoint lain yang diproteksi)
+- **Headers:**
+  - `Authorization: Bearer <token>`
+- **Langkah di Postman:**
+  1. Copy token dari response login/register.
+  2. Pilih tab **Authorization** di Postman.
+  3. Pilih **Bearer Token** dan paste token.
+  4. Atau, di tab **Headers** tambahkan:
+     - Key: `Authorization`
+     - Value: `Bearer <token>`
+  5. Klik **Send**.
+- **Response:** Data user atau data lain sesuai endpoint.
+
+### 4. Catatan
+- Token JWT harus dikirim di header setiap request ke endpoint yang diproteksi.
+- Jika token salah/expired, response akan 401 Unauthorized.
+- Endpoint public (misal `/api/public-courses`) tidak butuh token.
+
+## Daftar Endpoint API Utama
+
+### 1. Register
+- **POST** `/api/register`
+- **Body:**
+  ```json
+  {
+    "username": "user1",
+    "email": "user1@email.com",
+    "password": "password",
+    "password_confirmation": "password"
+  }
+  ```
+- **Response:**
+  - 201 Created, field `token` berisi JWT
+
+### 2. Login
+- **POST** `/api/login`
+- **Body:**
+  ```json
+  {
+    "email": "user1@email.com",
+    "password": "password"
+  }
+  ```
+- **Response:**
+  - 200 OK, field `token` berisi JWT
+  - 401 Unauthorized jika email/password salah
+
+### 3. Profile (Protected)
+- **GET** `/api/profile`
+- **Headers:** `Authorization: Bearer <token>`
+- **Response:**
+  - 200 OK, data user
+  - 401 Unauthorized jika token salah/expired
+
+### 4. Logout (Protected)
+- **POST** `/api/logout`
+- **Headers:** `Authorization: Bearer <token>`
+- **Response:**
+  - 200 OK, pesan sukses logout
+
+### 5. Refresh Token (Protected)
+- **POST** `/api/refresh`
+- **Headers:** `Authorization: Bearer <token>`
+- **Response:**
+  - 200 OK, field `token` berisi JWT baru
+
+### 6. Public Courses
+- **GET** `/api/public-courses`
+- **Response:**
+  - 200 OK, array data course (tanpa autentikasi)
+
+### 7. Courses (CRUD, Protected kecuali index/show)
+- **GET** `/api/courses` (public, semua course)
+- **GET** `/api/courses/{id}` (public, detail course)
+- **POST** `/api/courses` (protected, tambah course)
+- **PUT/PATCH** `/api/courses/{id}` (protected, edit course)
+- **DELETE** `/api/courses/{id}` (protected, hapus course)
+- **Headers (protected):** `Authorization: Bearer <token>`
+
+## Contoh Error Response
+```json
+{
+  "status": "error",
+  "message": "Invalid credentials"
+}
+```
+
+```json
+{
+  "status": "error",
+  "message": "Unauthenticated."
+}
+```
+
+## Catatan Umum
+- Endpoint protected **WAJIB** mengirim header `Authorization: Bearer <token>`
+- Token JWT didapat dari endpoint login/register
+- Endpoint public tidak butuh token
+- Jika token salah/expired, response 401 Unauthorized
+- Semua response dalam format JSON
+
+Jika ada endpoint tambahan, silakan tambahkan sesuai kebutuhan aplikasi. 

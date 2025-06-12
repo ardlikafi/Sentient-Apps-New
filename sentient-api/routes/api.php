@@ -18,6 +18,7 @@ Route::post('login', [AuthController::class, 'login']);
 Route::middleware('auth:api')->group(function () {
     Route::get('profile', [AuthController::class, 'profile']);
     Route::apiResource('courses', CourseController::class)->except(['index', 'show']);
+    Route::post('/logout', [AuthController::class, 'logout']);
 });
 
 // Public course routes
