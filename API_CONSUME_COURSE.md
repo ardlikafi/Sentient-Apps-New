@@ -1,6 +1,6 @@
 # Dokumentasi Consume API Course
 
-Dokumen ini menjelaskan cara melakukan consume (mengambil data) API untuk resource `course` pada backend Anda, baik menggunakan Flutter (Dart) maupun web (HTML/JavaScript).
+Dokumen ini menjelaskan cara melakukan consume (mengambil data) API untuk resource `course` pada backend, baik menggunakan Flutter (Dart) maupun web (HTML/JavaScript).
 
 ---
 
