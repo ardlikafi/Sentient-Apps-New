@@ -10,7 +10,7 @@ GET /api/public-courses
   Mengambil daftar semua course yang tersedia secara publik. Endpoint ini dapat diakses tanpa autentikasi dan dapat digunakan oleh aplikasi/web/pihak ketiga.
 
 - **Base URL:**
-  `http://yourdomain.com/api/public-courses`
+  `http://domain.com/api/public-courses`
 
 ## Response Example
 
