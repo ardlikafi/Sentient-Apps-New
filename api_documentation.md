@@ -10,7 +10,7 @@ GET /api/public-courses
   Mengambil daftar semua course yang tersedia secara publik. Endpoint ini dapat diakses tanpa autentikasi dan dapat digunakan oleh aplikasi/web/pihak ketiga.
 
 - **Base URL:**
-  `http://yourdomain.com/api/public-courses`
+  `http://domain.com/api/public-courses`
 
 ## Response Example
 
@@ -73,6 +73,7 @@ Future<void> fetchCourses() async {
 
 ### 4. Catatan
 - Endpoint ini dapat diakses siapa saja tanpa autentikasi.
+<<<<<<< HEAD
 - Response berupa array JSON berisi data course.
 
 ## Contoh Penggunaan JWT di Postman
@@ -204,3 +205,6 @@ Future<void> fetchCourses() async {
 - Semua response dalam format JSON
 
 Jika ada endpoint tambahan, silakan tambahkan sesuai kebutuhan aplikasi. 
+=======
+- Response berupa array JSON berisi data course. 
+>>>>>>> ef962f07dcefad3910b7d55a3e58695dfb7ec662
