@@ -1139,5 +1139,5 @@ String? extractYoutubeId(String url) {
     multiLine: false,
   );
   final match = regExp.firstMatch(url);
-  return match != null ? match.group(1) : null;
+  return match?.group(1);
 }

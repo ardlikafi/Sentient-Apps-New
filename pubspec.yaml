@@ -117,6 +117,18 @@ flutter:
     - assets/icons/ic_email.png
     - assets/icons/ic_password.png
     - assets/icons/ic_add_photo.png
+    - assets/images/product1.png
+    - assets/images/product2.png
+    - assets/images/product3.png
+    - assets/images/product4.png
+    - assets/images/product5.png
+    - assets/images/product6.png
+    - assets/images/article1.png
+    - assets/images/article2.png
+    - assets/images/article3.png
+    - assets/images/article4.png
+    - assets/images/article5.png
+    - assets/images/article6.png
   fonts:
     - family: Poppins
       fonts:
