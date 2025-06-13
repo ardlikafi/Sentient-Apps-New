@@ -203,8 +203,3 @@ Future<void> fetchCourses() async {
 - Endpoint public tidak butuh token
 - Jika token salah/expired, response 401 Unauthorized
 - Semua response dalam format JSON
-
-Jika ada endpoint tambahan, silakan tambahkan sesuai kebutuhan aplikasi. 
-=======
-- Response berupa array JSON berisi data course. 
->>>>>>> ef962f07dcefad3910b7d55a3e58695dfb7ec662
