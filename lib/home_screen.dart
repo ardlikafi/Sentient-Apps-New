@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'dart:math'; // Untuk Random().nextInt() pada shuffle sederhana
+import 'dart:math';
 import 'dart:async';
 import 'package:intl/intl.dart';
 import 'package:sentient/course_screen.dart';
@@ -9,6 +9,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'api_service.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 import 'dart:io';
+import 'package:sentient/product_detail_screen.dart';
+import 'package:sentient/article_detail_screen.dart'; // Import ArticleDetailScreen
 
 // Definisikan color palette Anda
 const Color kDarkBlue = Color(0xFF000A26);
@@ -30,7 +32,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
-  static const List<Widget> _pageOptions = <Widget>[
+  static const List<Widget> pageOptions = <Widget>[
     HomeContent(),
     CourseScreen(),
     ShopScreen(),
@@ -46,7 +48,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(index: _selectedIndex, children: _pageOptions),
+      body: IndexedStack(index: _selectedIndex, children: pageOptions),
       bottomNavigationBar: Container(
         padding: const EdgeInsets.symmetric(vertical: 4.0),
         decoration: BoxDecoration(
@@ -117,7 +119,11 @@ class HomeContent extends StatefulWidget {
   State<HomeContent> createState() => _HomeContentState();
 }
 
-class _HomeContentState extends State<HomeContent> {
+class _HomeContentState extends State<HomeContent>
+    with AutomaticKeepAliveClientMixin<HomeContent> {
+  @override
+  bool get wantKeepAlive => true;
+
   Map<String, dynamic>? _homeHeaderData;
   List<Map<String, dynamic>> _allCourses = [];
   List<Map<String, dynamic>> _allProducts = [];
@@ -128,17 +134,13 @@ class _HomeContentState extends State<HomeContent> {
   @override
   void initState() {
     super.initState();
+    print("HomeContent initState called");
     _fetchInitialData();
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // Jika kembali dari profile, refresh data
-    _fetchHomeHeaderData();
-  }
-
   Future<void> _fetchInitialData() async {
+    print("Fetching initial data for HomeContent...");
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
       _errorMsg = null;
@@ -148,20 +150,25 @@ class _HomeContentState extends State<HomeContent> {
         _fetchHomeHeaderData(),
         _fetchCourseData(),
         _fetchShopData(),
-        _fetchArticleData(),
+        _fetchArticleData(), // Fetch data artikel
       ]);
+      if (mounted) {
+        print("Initial data fetch complete.");
+        setState(() => _isLoading = false);
+      }
     } catch (e, s) {
       print('Error saat fetch data Home: $e\n$s');
       if (mounted) {
-        setState(
-          () => _errorMsg = 'Terjadi error saat mengambil data Home: $e',
-        );
+        setState(() {
+          _errorMsg = 'Terjadi error saat mengambil data Home: ${e.toString()}';
+          _isLoading = false;
+        });
       }
     }
-    if (mounted) setState(() => _isLoading = false);
   }
 
   Future<void> _refreshData() async {
+    print("Refreshing HomeContent data...");
     await _fetchInitialData();
   }
 
@@ -171,27 +178,25 @@ class _HomeContentState extends State<HomeContent> {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('token');
       if (token == null) {
-        if (mounted) {
-          setState(
-            () => _errorMsg = 'Token tidak ditemukan. Silakan login ulang.',
-          );
-        }
         print('Token tidak ditemukan.');
+        if (mounted) {
+          _homeHeaderData = null;
+          print('Profile data will be null due to missing token.');
+        }
         return;
       }
       final result = await ApiService.getProfile(token);
       if (mounted) {
         if (result != null) {
-          setState(() => _homeHeaderData = result);
+          _homeHeaderData = result;
           print('Profile berhasil diambil.');
         } else {
-          setState(() => _errorMsg = 'Gagal mengambil data profile.');
           print('Gagal mengambil data profile.');
         }
       }
     } catch (e) {
       print('Error fetch profile: $e');
-      if (mounted) setState(() => _errorMsg = 'Error fetch profile: $e');
+      rethrow;
     }
   }
 
@@ -208,8 +213,7 @@ class _HomeContentState extends State<HomeContent> {
           "rating": 4.5,
           "reviewCount": 50,
           "category": "popular",
-          "youtube_url":
-              "https://www.youtube.com/watch?v=OCSbzArwB10", // Chess for Beginners
+          "youtube_url": "https://www.youtube.com/watch?v=OCSbzArwB10",
           "description":
               "Learn the complete basics of chess with this comprehensive guide. Perfect for beginners who want to start their chess journey.",
         },
@@ -221,8 +225,7 @@ class _HomeContentState extends State<HomeContent> {
           "rating": 4.8,
           "reviewCount": 75,
           "category": "popular",
-          "youtube_url":
-              "https://www.youtube.com/watch?v=NAIQyoPcjNM", // Chess Tactics for Intermediate Players
+          "youtube_url": "https://www.youtube.com/watch?v=NAIQyoPcjNM",
           "description":
               "Master essential tactical patterns and strategic concepts to improve your game.",
         },
@@ -234,8 +237,7 @@ class _HomeContentState extends State<HomeContent> {
           "rating": 4.2,
           "reviewCount": 30,
           "category": "all",
-          "youtube_url":
-              "https://www.youtube.com/watch?v=W1gWHIpQNVU", // Top 5 Chess Openings
+          "youtube_url": "https://www.youtube.com/watch?v=W1gWHIpQNVU",
           "description":
               "Build a strong opening repertoire with proven strategies for all levels.",
         },
@@ -247,8 +249,7 @@ class _HomeContentState extends State<HomeContent> {
           "rating": 4.0,
           "reviewCount": 120,
           "category": "free",
-          "youtube_url":
-              "https://www.youtube.com/watch?v=Reza8udb47Y", // Chess for Beginners (ulang)
+          "youtube_url": "https://www.youtube.com/watch?v=Reza8udb47Y",
           "description":
               "Start your chess journey with this free course covering all the basic rules and concepts.",
         },
@@ -260,81 +261,86 @@ class _HomeContentState extends State<HomeContent> {
           "rating": 4.9,
           "reviewCount": 90,
           "category": "popular",
-          "youtube_url":
-              "https://www.youtube.com/watch?v=MA8Scue28Ks", // Chess Endgame Masterclass
+          "youtube_url": "https://www.youtube.com/watch?v=MA8Scue28Ks",
           "description":
               "Master the art of endgame play with advanced techniques and strategies.",
         },
       ];
-      if (mounted) setState(() {});
     } catch (e) {
       print('Error fetch course: $e');
-      if (mounted) setState(() => _errorMsg = 'Error fetch course: $e');
+      rethrow;
     }
   }
 
   Future<void> _fetchShopData() async {
+    print('Mulai fetch shop...');
     try {
       await Future.delayed(const Duration(milliseconds: 100));
       _allProducts = [
         {
           "id": "p1",
-          "imageUrl":
-              "https://m.media-amazon.com/images/I/71zVVEVB5tL._AC_SL1500_.jpg",
+          "imageUrl": "assets/images/product1.png",
           "name": "Beautiful Metal Chess Set",
           "subtitle": "Chess Board",
           "price": 99999,
-          "category": "chess",
+          "category": "Chess",
+          "description":
+              "Rasakan nuansa modern dan premium dengan set catur logam ini. Dibuat dengan presisi tinggi, setiap bidak memiliki bobot yang mantap dan detail yang tajam. Sempurna untuk permainan kompetitif maupun sebagai pajangan yang elegan di ruang kerja Anda.",
         },
         {
           "id": "p2",
-          "imageUrl":
-              "https://m.media-amazon.com/images/I/81M7o+-V3CL._AC_SL1500_.jpg",
+          "imageUrl": "assets/images/product2.png",
           "name": "Beautiful Handcrafted Wooden Chess Set",
           "subtitle": "Chess Board",
           "price": 149999,
-          "category": "chess",
+          "category": "Chess",
+          "description":
+              "Kembali ke akar klasik dengan set catur kayu buatan tangan ini. Setiap bidak diukir dengan teliti dari kayu Sheesham dan Boxwood, memberikan sentuhan hangat dan otentik. Papan catur yang kokoh melengkapi set yang abadi ini.",
         },
         {
           "id": "p3",
-          "imageUrl":
-              "https://m.media-amazon.com/images/I/71v5Xyol6qL._AC_SL1500_.jpg",
+          "imageUrl": "assets/images/product3.png",
           "name": "Elegant Glass Chess Set",
           "subtitle": "Chess Board",
           "price": 199999,
-          "category": "chess",
+          "category": "Chess",
+          "description":
+              "Lebih dari sekadar permainan, set catur kaca ini adalah sebuah karya seni. Desainnya yang transparan dan minimalis menciptakan tampilan yang menakjubkan di atas meja apa pun. Bidak yang bening dan buram memberikan kontras visual yang indah.",
         },
         {
           "id": "p4",
-          "imageUrl":
-              "https://m.media-amazon.com/images/I/71UohSAT3DL._AC_SL1500_.jpg",
+          "imageUrl": "assets/images/product4.png",
           "name": "Luxurious Marble Chess Set",
           "subtitle": "Chess Board",
           "price": 129999,
-          "category": "chess",
+          "category": "Chess",
+          "description":
+              "Tingkatkan pengalaman bermain Anda dengan kemewahan set catur marmer. Setiap bidak dipoles dari batu marmer asli, memberikan bobot dan nuansa yang tak tertandingi. Pola alami batu membuat setiap set menjadi unik.",
         },
         {
           "id": "p5",
-          "imageUrl":
-              "https://m.media-amazon.com/images/I/61O23yq4mDL._AC_SL1000_.jpg",
+          "imageUrl": "assets/images/product5.png",
           "name": "Chess Clock Digital Timer",
           "subtitle": "Chess Items",
           "price": 250000,
-          "category": "items",
+          "category": "Items",
+          "description":
+              "Jam catur digital yang andal untuk pemain serius. Dilengkapi dengan mode bonus dan delay, jam ini memenuhi standar turnamen FIDE. Mudah dioperasikan, dengan layar besar yang jelas dan tombol yang responsif untuk permainan cepat.",
         },
         {
           "id": "p6",
-          "imageUrl":
-              "https://m.media-amazon.com/images/I/71g7g9WnB2L._AC_SL1500_.jpg",
+          "imageUrl": "assets/images/product6.png",
           "name": "Roll-Up Chess Board",
           "subtitle": "Chess Items",
           "price": 150000,
-          "category": "items",
+          "category": "Items",
+          "description":
+              "Bawa permainan catur ke mana saja dengan papan catur gulung ini. Terbuat dari vinyl atau silikon berkualitas tinggi yang tahan lama dan mudah dibersihkan. Ringan dan portabel, ideal untuk klub catur, turnamen, atau bermain di taman.",
         },
       ];
-      if (mounted) setState(() {});
     } catch (e) {
       print('Error fetch shop: $e');
+      rethrow;
     }
   }
 
@@ -343,67 +349,74 @@ class _HomeContentState extends State<HomeContent> {
     try {
       await Future.delayed(Duration(milliseconds: 300));
       final random = Random();
+      // --- Menggunakan path asset lokal untuk gambar artikel ---
       _allArticles = [
         {
           "id": "a1",
-          "imageUrl":
-              "https://images.chesscomfiles.com/uploads/v1/images_users/tiny_mce/PedroPinhata/phpY0h0bY.jpeg",
+          "imageUrl": "assets/images/article1.png",
           "title":
               "Learn Chess with a Mind of Its Own: The Sentient Chess Tutor",
           "summary":
               "Master the fundamentals of chess through interactive lessons, guided practice, and personalized AI feedback.",
-          "date": "Maret 16, 2025",
+          "date": "Mar 25, 2025",
           "source": "Chess.com Blog",
+          "category": "Education",
+          "author": "Sentient Writer",
         },
         {
           "id": "a2",
-          "imageUrl":
-              "https://images.chesscomfiles.com/uploads/v1/article/26022.77233108.630x354o.4aad52961f70.jpeg",
+          "imageUrl": "assets/images/article2.png",
           "title": "Top 5 Openings for Beginners",
           "summary":
-              "Discover the most effective and easy-to-learn chess openings to start your games强.",
+              "Discover the most effective and easy-to-learn chess openings to start your games.",
           "date": "Maret 10, 2025",
           "source": "Lichess Org",
+          "category": "Openings",
+          "author": "Lichess Team",
         },
         {
           "id": "a3",
-          "imageUrl":
-              "https://images.chesscomfiles.com/uploads/v1/images_users/tiny_mce/SamCopeland/phpfoXLVf.png",
+          "imageUrl": "assets/images/article3.png",
           "title": "Understanding Middlegame Pawn Structures",
           "summary":
               "A deep dive into how pawn structures can dictate your middlegame strategy and plans.",
           "date": "Maret 05, 2025",
           "source": "ChessBase News",
+          "category": "Strategy",
+          "author": "Sam Copeland",
         },
         {
           "id": "a4",
-          "imageUrl":
-              "https://images.chesscomfiles.com/uploads/v1/images_users/tiny_mce/ColinStapczynski/phpu2Yd7y.jpeg",
+          "imageUrl": "assets/images/article4.png",
           "title": "The Art of a Kingside Attack",
           "summary":
               "Learn key patterns and ideas for launching a successful attack on your opponent's king.",
           "date": "Februari 28, 2025",
           "source": "The Week in Chess",
+          "category": "Tactics",
+          "author": "Colin Stapczynski",
         },
         {
           "id": "a5",
-          "imageUrl":
-              "https://images.chesscomfiles.com/uploads/v1/images_users/tiny_mce/PedroPinhata/phppEkvum.png",
+          "imageUrl": "assets/images/article5.png",
           "title": "How to Analyze Your Chess Games",
           "summary":
               "Improve your chess by effectively analyzing your past games, identifying mistakes and good moves.",
           "date": "Februari 20, 2025",
           "source": "Chessable",
+          "category": "Improvement",
+          "author": "Pedro Pinhata",
         },
         {
           "id": "a6",
-          "imageUrl":
-              "https://www.chess.com/chess-themes/images/banners/variant_atomic.jpg",
+          "imageUrl": "assets/images/article6.png",
           "title": "Introduction to Chess Variants",
           "summary":
               "Explore fun and exciting chess variants like Crazyhouse, Bughouse, and Atomic chess.",
           "date": "Februari 15, 2025",
           "source": "Chess Variants Org",
+          "category": "Variants",
+          "author": "Various",
         },
       ];
       if (mounted) {
@@ -415,12 +428,14 @@ class _HomeContentState extends State<HomeContent> {
       print('Article berhasil diambil.');
     } catch (e) {
       print('Error fetch article: $e');
-      if (mounted) setState(() => _errorMsg = 'Error fetch article: $e');
+      rethrow;
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
+
     return Scaffold(
       backgroundColor: kVeryLightBlue,
       body: SafeArea(
@@ -428,36 +443,34 @@ class _HomeContentState extends State<HomeContent> {
         bottom: false,
         child: RefreshIndicator(
           onRefresh: _refreshData,
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            child:
-                _isLoading
-                    ? SizedBox(
-                      height:
-                          MediaQuery.of(context).size.height -
-                          MediaQuery.of(context).padding.top -
-                          MediaQuery.of(context).padding.bottom -
-                          kToolbarHeight,
-                      child: const Center(child: CircularProgressIndicator()),
-                    )
-                    : (_errorMsg != null)
-                    ? SizedBox(
-                      height:
-                          MediaQuery.of(context).size.height -
-                          MediaQuery.of(context).padding.top -
-                          MediaQuery.of(context).padding.bottom -
-                          kToolbarHeight,
-                      child: Center(
-                        child: Text(
-                          _errorMsg!,
-                          style: const TextStyle(
-                            color: Colors.red,
-                            fontSize: 16,
-                          ),
-                        ),
+          child:
+              _isLoading
+                  ? SizedBox(
+                    height:
+                        MediaQuery.of(context).size.height -
+                        MediaQuery.of(context).padding.top -
+                        MediaQuery.of(context).padding.bottom -
+                        kToolbarHeight,
+                    child: const Center(child: CircularProgressIndicator()),
+                  )
+                  : (_errorMsg != null)
+                  ? SizedBox(
+                    height:
+                        MediaQuery.of(context).size.height -
+                        MediaQuery.of(context).padding.top -
+                        MediaQuery.of(context).padding.bottom -
+                        kToolbarHeight,
+                    child: Center(
+                      child: Text(
+                        _errorMsg!,
+                        style: const TextStyle(color: Colors.red, fontSize: 16),
+                        textAlign: TextAlign.center,
                       ),
-                    )
-                    : Column(
+                    ),
+                  )
+                  : SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         HomeHeader(profileData: _homeHeaderData),
@@ -465,15 +478,17 @@ class _HomeContentState extends State<HomeContent> {
                         CoursesSection(allCourses: _allCourses),
                         ShopSection(allProducts: _allProducts),
                         ArticleSection(allArticles: _allArticles),
+                        const SizedBox(height: kToolbarHeight + 4),
                       ],
                     ),
-          ),
+                  ),
         ),
       ),
     );
   }
 }
 
+// HomeHeader Widget (Tetap sama)
 class HomeHeader extends StatefulWidget {
   final Map<String, dynamic>? profileData;
   const HomeHeader({super.key, required this.profileData});
@@ -500,14 +515,48 @@ class _HomeHeaderState extends State<HomeHeader> {
     final prefs = await SharedPreferences.getInstance();
     final path = prefs.getString('avatar_path');
     if (path != null && path.isNotEmpty) {
-      setState(() {
-        _avatarPath = path;
-        _avatarImage = FileImage(File(path));
-      });
+      if (mounted) {
+        setState(() {
+          _avatarPath = path;
+          _avatarImage = FileImage(File(path));
+        });
+      }
     } else {
+      if (mounted) {
+        setState(() {
+          _avatarPath = null;
+          _avatarImage = null;
+        });
+      }
+    }
+  }
+
+  void _syncUser() {
+    final user =
+        widget.profileData != null ? widget.profileData!['user'] : null;
+    final profile =
+        widget.profileData != null ? widget.profileData!['profile'] : null;
+    if (mounted) {
       setState(() {
-        _avatarPath = null;
-        _avatarImage = null;
+        _username = user?['username'] ?? 'User';
+        _email = user?['email'];
+
+        if (_avatarPath == null) {
+          final backendAvatar = profile?['avatar'];
+          if (backendAvatar != null && backendAvatar.toString().isNotEmpty) {
+            final avatarUrl = backendAvatar.toString();
+            if (avatarUrl.startsWith('http') || avatarUrl.startsWith('https')) {
+              _avatarImage = NetworkImage(avatarUrl);
+            } else {
+              print(
+                "Warning: Backend avatar path looks local but no local path found: $avatarUrl",
+              );
+              _avatarImage = null;
+            }
+          } else {
+            _avatarImage = null;
+          }
+        }
       });
     }
   }
@@ -518,28 +567,6 @@ class _HomeHeaderState extends State<HomeHeader> {
     _loadLocalAvatar();
   }
 
-  void _updateGreeting() {
-    final hour = DateTime.now().hour;
-    setState(() {
-      if (hour >= 5 && hour < 12) {
-        _greeting = "Good Morning";
-      } else if (hour >= 12 && hour < 18) {
-        _greeting = "Good Afternoon";
-      } else {
-        _greeting = "Good Evening";
-      }
-    });
-  }
-
-  void _syncUser() {
-    final user =
-        widget.profileData != null ? widget.profileData!['user'] : null;
-    setState(() {
-      _username = user?['username'] ?? 'User';
-      _email = user?['email'];
-    });
-  }
-
   @override
   void didUpdateWidget(covariant HomeHeader oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -548,26 +575,25 @@ class _HomeHeaderState extends State<HomeHeader> {
     }
   }
 
+  void _updateGreeting() {
+    final hour = DateTime.now().hour;
+    if (mounted) {
+      setState(() {
+        if (hour >= 5 && hour < 12) {
+          _greeting = "Good Morning";
+        } else if (hour >= 12 && hour < 18) {
+          _greeting = "Good Afternoon";
+        } else {
+          _greeting = "Good Evening";
+        }
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final double topPadding = MediaQuery.of(context).padding.top;
-    ImageProvider? avatarImage = _avatarImage;
-    if (avatarImage == null) {
-      final profile =
-          widget.profileData != null ? widget.profileData!['profile'] : null;
-      if (profile != null &&
-          profile['avatar'] != null &&
-          profile['avatar'].toString().isNotEmpty) {
-        final avatarPath = profile['avatar'].toString();
-        if (avatarPath.startsWith('http') || avatarPath.startsWith('https')) {
-          avatarImage = NetworkImage(avatarPath);
-        } else {
-          avatarImage = FileImage(File(avatarPath));
-        }
-      } else {
-        avatarImage = null;
-      }
-    }
+
     return Container(
       padding: EdgeInsets.only(
         left: 20.0,
@@ -577,7 +603,7 @@ class _HomeHeaderState extends State<HomeHeader> {
       ),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFF000A26), Color(0xFF0F52BA)],
+          colors: [kGradientStartBlue, kGradientEndBlue],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
         ),
@@ -586,52 +612,59 @@ class _HomeHeaderState extends State<HomeHeader> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 28,
-                backgroundColor: kLightBlue.withOpacity(0.5),
-                backgroundImage: avatarImage != null ? avatarImage : null,
-                child:
-                    avatarImage == null
-                        ? const Icon(Icons.person, size: 32, color: kDarkBlue)
-                        : null,
-              ),
-              const SizedBox(width: 16),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _greeting,
-                    style: TextStyle(
-                      color: kVeryLightBlue.withOpacity(0.9),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '$_username!',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (_email != null)
-                    Text(
-                      _email!,
-                      style: TextStyle(
-                        color: kVeryLightBlue.withOpacity(0.8),
-                        fontSize: 13,
+          Expanded(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircleAvatar(
+                  radius: 28,
+                  backgroundColor: kLightBlue.withOpacity(0.5),
+                  backgroundImage: _avatarImage,
+                  child:
+                      _avatarImage == null
+                          ? const Icon(Icons.person, size: 32, color: kDarkBlue)
+                          : null,
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _greeting,
+                        style: TextStyle(
+                          color: kVeryLightBlue.withOpacity(0.9),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                ],
-              ),
-            ],
+                      const SizedBox(height: 2),
+                      Text(
+                        '$_username!',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (_email != null && _email!.isNotEmpty)
+                        Text(
+                          _email!,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: kVeryLightBlue.withOpacity(0.8),
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
+          const SizedBox(width: 16),
           InkWell(
             onTap: () => print("Notification button pressed"),
             customBorder: const CircleBorder(),
@@ -641,7 +674,7 @@ class _HomeHeaderState extends State<HomeHeader> {
                 Container(
                   padding: const EdgeInsets.all(10.0),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFD6E5F2).withOpacity(0.40),
+                    color: kVeryLightBlue.withOpacity(0.40),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -660,7 +693,7 @@ class _HomeHeaderState extends State<HomeHeader> {
                       color: Colors.blueAccent,
                       shape: BoxShape.circle,
                       border: Border.fromBorderSide(
-                        BorderSide(color: Color(0xFF0F52BA), width: 1.5),
+                        BorderSide(color: kPrimaryBlue, width: 1.5),
                       ),
                     ),
                   ),
@@ -674,6 +707,7 @@ class _HomeHeaderState extends State<HomeHeader> {
   }
 }
 
+// EventSection Widget (Tetap sama)
 class EventSection extends StatefulWidget {
   const EventSection({super.key});
 
@@ -718,7 +752,7 @@ class _EventSectionState extends State<EventSection> {
 
   void _startAutoScroll() {
     _timer = Timer.periodic(const Duration(seconds: 3), (timer) {
-      if (!_pageController.hasClients) return;
+      if (!mounted || !_pageController.hasClients) return;
       int nextPage = (_currentPage + 1) % _eventItems.length;
       _pageController.animateToPage(
         nextPage,
@@ -750,9 +784,11 @@ class _EventSectionState extends State<EventSection> {
               controller: _pageController,
               itemCount: _eventItems.length,
               onPageChanged: (int page) {
-                setState(() {
-                  _currentPage = page;
-                });
+                if (mounted) {
+                  setState(() {
+                    _currentPage = page;
+                  });
+                }
               },
               itemBuilder: (context, index) {
                 final event = _eventItems[index];
@@ -795,6 +831,7 @@ class _EventSectionState extends State<EventSection> {
                 fit: BoxFit.cover,
                 height: double.infinity,
                 errorBuilder: (context, error, stackTrace) {
+                  print("Error loading event image: ${event['imageUrl']}");
                   return Container(
                     height: double.infinity,
                     color: kLightBlue.withOpacity(0.3),
@@ -844,7 +881,9 @@ class _EventSectionState extends State<EventSection> {
                   ],
                 ),
                 ElevatedButton(
-                  onPressed: () {},
+                  onPressed: () {
+                    /* TODO: Implement event action */
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: kVeryLightBlue,
                     foregroundColor: kPrimaryBlue,
@@ -886,6 +925,7 @@ class _EventSectionState extends State<EventSection> {
   }
 }
 
+// CoursesSection Widget (Tombol See All tetap push CourseScreen)
 class CoursesSection extends StatefulWidget {
   final List<Map<String, dynamic>> allCourses;
   const CoursesSection({super.key, required this.allCourses});
@@ -905,21 +945,34 @@ class _CoursesSectionState extends State<CoursesSection> {
 
   void _applyFilter() {
     setState(() {
+      if (widget.allCourses.isEmpty) {
+        _filteredCourses = [];
+        return;
+      }
+
+      List<Map<String, dynamic>> tempCourses;
+
       if (_selectedFilter == "All Course") {
-        _filteredCourses = List.from(widget.allCourses);
+        tempCourses = List.from(widget.allCourses);
       } else if (_selectedFilter == "Populer") {
-        _filteredCourses =
+        tempCourses =
             widget.allCourses
                 .where(
                   (course) =>
-                      course['rating'] >= 4.5 ||
-                      course['category'] == 'popular',
+                      (course['rating'] != null &&
+                          (course['rating'] as num) >= 4.5) ||
+                      (course['category'] == 'popular'),
                 )
                 .toList();
       } else if (_selectedFilter == "Free") {
-        _filteredCourses =
-            widget.allCourses.where((course) => course['price'] == 0).toList();
+        tempCourses =
+            widget.allCourses
+                .where((course) => (course['price'] as num? ?? 0) == 0)
+                .toList();
+      } else {
+        tempCourses = List.from(widget.allCourses);
       }
+      _filteredCourses = tempCourses;
     });
   }
 
@@ -982,7 +1035,14 @@ class _CoursesSectionState extends State<CoursesSection> {
                   ),
                 ),
                 TextButton(
-                  onPressed: () => print("See all courses pressed"),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const CourseScreen(),
+                      ),
+                    );
+                  },
                   child: Text(
                     "See all",
                     style: TextStyle(
@@ -1045,19 +1105,15 @@ class CourseCard extends StatefulWidget {
 
 class _CourseCardState extends State<CourseCard> {
   YoutubePlayerController? _controller;
-  bool _isVideoInitialized = false;
-  bool _isVideoLoading = true;
 
   @override
   void initState() {
     super.initState();
+    print("CourseCard initState for ${widget.course['title']}");
     _initializeVideo();
   }
 
   void _initializeVideo() {
-    setState(() {
-      _isVideoLoading = true;
-    });
     final String? youtubeUrl = widget.course['youtube_url'] as String?;
     if (youtubeUrl != null && youtubeUrl.isNotEmpty) {
       final videoId = extractYoutubeId(youtubeUrl);
@@ -1065,19 +1121,37 @@ class _CourseCardState extends State<CourseCard> {
         _controller = YoutubePlayerController.fromVideoId(
           videoId: videoId,
           params: const YoutubePlayerParams(
-            showControls: true,
-            showFullscreenButton: true,
+            showControls: false,
+            showFullscreenButton: false,
             mute: true,
             showVideoAnnotations: false,
           ),
+          autoPlay: false,
         );
-        _isVideoInitialized = true;
+      } else {
+        print("Could not extract YouTube ID from URL: $youtubeUrl");
       }
+    } else {
+      print("No YouTube URL provided for course: ${widget.course['title']}");
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant CourseCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.course['youtube_url'] != widget.course['youtube_url']) {
+      print(
+        "Course URL changed, re-initializing video for ${widget.course['title']}",
+      );
+      _controller?.close();
+      _controller = null;
+      _initializeVideo();
     }
   }
 
   @override
   void dispose() {
+    print("CourseCard dispose for ${widget.course['title']}");
     _controller?.close();
     super.dispose();
   }
@@ -1094,17 +1168,18 @@ class _CourseCardState extends State<CourseCard> {
 
     return GestureDetector(
       onTap: () {
-        if (youtubeUrl != null && youtubeUrl.isNotEmpty && videoId != null) {
+        if (videoId != null) {
           showDialog(
             context: context,
             builder:
                 (context) => Dialog(
                   backgroundColor: Colors.transparent,
                   insetPadding: EdgeInsets.symmetric(
-                    horizontal: MediaQuery.of(context).size.width * 0.1,
-                    vertical: MediaQuery.of(context).size.height * 0.25,
+                    horizontal: MediaQuery.of(context).size.width * 0.05,
+                    vertical: MediaQuery.of(context).size.height * 0.15,
                   ),
                   child: Stack(
+                    clipBehavior: Clip.none,
                     children: [
                       AspectRatio(
                         aspectRatio: 16 / 9,
@@ -1119,17 +1194,28 @@ class _CourseCardState extends State<CourseCard> {
                                 mute: false,
                                 showVideoAnnotations: false,
                               ),
+                              autoPlay: true,
                             ),
                             aspectRatio: 16 / 9,
                           ),
                         ),
                       ),
                       Positioned(
-                        top: 8,
-                        right: 8,
-                        child: IconButton(
-                          icon: Icon(Icons.close, color: Colors.white),
-                          onPressed: () => Navigator.of(context).pop(),
+                        top: -15,
+                        right: -15,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.black54,
+                            shape: BoxShape.circle,
+                          ),
+                          child: IconButton(
+                            icon: const Icon(
+                              Icons.close,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                            onPressed: () => Navigator.of(context).pop(),
+                          ),
                         ),
                       ),
                     ],
@@ -1137,12 +1223,12 @@ class _CourseCardState extends State<CourseCard> {
                 ),
           );
         } else {
-          print("Course tapped: " + (widget.course['title'] ?? ''));
+          print("Course tapped (No Video): " + (widget.course['title'] ?? ''));
         }
       },
       child: Container(
-        width: 160,
-        margin: const EdgeInsets.only(right: 12.0),
+        width: 180,
+        margin: const EdgeInsets.only(right: 16.0),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(15.0),
@@ -1170,8 +1256,56 @@ class _CourseCardState extends State<CourseCard> {
                       thumbnailUrl,
                       height: 120,
                       width: double.infinity,
-                      fit: BoxFit.fill,
+                      fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) {
+                        print(
+                          "Error loading YouTube thumbnail, trying asset: $error",
+                        );
+                        return Image.asset(
+                          imageUrl ?? 'assets/images/course1.png',
+                          height: 120,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            print(
+                              "Error loading both thumbnail and asset image: $error",
+                            );
+                            return Container(
+                              height: 120,
+                              color: kLightBlue.withOpacity(0.3),
+                              child: const Center(
+                                child: Icon(
+                                  Icons.photo_size_select_actual_outlined,
+                                  color: kDarkBlue,
+                                  size: 30,
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                      loadingBuilder: (c, child, p) {
+                        if (p == null) return child;
+                        return Container(
+                          height: 120,
+                          child: Center(
+                            child: CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                kPrimaryBlue,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    )
+                  else if (imageUrl != null && imageUrl.startsWith('assets/'))
+                    Image.asset(
+                      imageUrl,
+                      height: 120,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        print("Error loading asset image: $error");
                         return Container(
                           height: 120,
                           color: kLightBlue.withOpacity(0.3),
@@ -1186,157 +1320,83 @@ class _CourseCardState extends State<CourseCard> {
                       },
                     )
                   else
-                    Image.asset(
-                      imageUrl ?? 'assets/images/course1.png',
+                    Container(
                       height: 120,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        print("Error loading course image: $error");
-                        return Container(
-                          height: 120,
-                          color: kLightBlue.withOpacity(0.3),
-                          child: const Center(
-                            child: Icon(
-                              Icons.photo_size_select_actual_outlined,
-                              color: kDarkBlue,
-                              size: 30,
-                            ),
+                      color: kLightBlue.withOpacity(0.3),
+                      child: const Center(
+                        child: Icon(
+                          Icons.photo_size_select_actual_outlined,
+                          color: kDarkBlue,
+                          size: 30,
+                        ),
+                      ),
+                    ),
+
+                  if (videoId != null)
+                    Positioned.fill(
+                      child: Center(
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.6),
+                            shape: BoxShape.circle,
                           ),
-                        );
-                      },
-                    ),
-                  Positioned(
-                    right: 8,
-                    bottom: 8,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.7),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: const Icon(
-                        Icons.play_circle_filled,
-                        color: Colors.white,
-                        size: 24,
+                          child: const Icon(
+                            Icons.play_circle_fill,
+                            color: Colors.white,
+                            size: 40,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                  Positioned.fill(
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: () {
-                          if (youtubeUrl != null &&
-                              youtubeUrl.isNotEmpty &&
-                              videoId != null) {
-                            showDialog(
-                              context: context,
-                              builder:
-                                  (context) => Dialog(
-                                    backgroundColor: Colors.transparent,
-                                    insetPadding: EdgeInsets.symmetric(
-                                      horizontal:
-                                          MediaQuery.of(context).size.width *
-                                          0.1,
-                                      vertical:
-                                          MediaQuery.of(context).size.height *
-                                          0.25,
-                                    ),
-                                    child: Stack(
-                                      children: [
-                                        AspectRatio(
-                                          aspectRatio: 16 / 9,
-                                          child: ClipRRect(
-                                            borderRadius: BorderRadius.circular(
-                                              15,
-                                            ),
-                                            child: YoutubePlayer(
-                                              controller:
-                                                  YoutubePlayerController.fromVideoId(
-                                                    videoId: videoId,
-                                                    params:
-                                                        const YoutubePlayerParams(
-                                                          showControls: true,
-                                                          showFullscreenButton:
-                                                              true,
-                                                          mute: false,
-                                                          showVideoAnnotations:
-                                                              false,
-                                                        ),
-                                                  ),
-                                              aspectRatio: 16 / 9,
-                                            ),
-                                          ),
-                                        ),
-                                        Positioned(
-                                          top: 8,
-                                          right: 8,
-                                          child: IconButton(
-                                            icon: Icon(
-                                              Icons.close,
-                                              color: Colors.white,
-                                            ),
-                                            onPressed:
-                                                () =>
-                                                    Navigator.of(context).pop(),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                            );
-                          }
-                        },
-                        splashColor: Colors.black12,
-                        highlightColor: Colors.transparent,
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.course['title']!,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: kDarkBlue,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    price == 0
-                        ? "Free"
-                        : "Rp. ${NumberFormat.decimalPattern('id_ID').format(price)}",
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: kPrimaryBlue,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      const Icon(Icons.star, color: Colors.amber, size: 16),
-                      const SizedBox(width: 4),
-                      Text(
-                        "${widget.course['rating']} (${widget.course['reviewCount']})",
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: kDarkBlue.withOpacity(0.7),
-                        ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      widget.course['title']!,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: kDarkBlue,
                       ),
-                    ],
-                  ),
-                ],
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 6),
+                    const Spacer(),
+                    Text(
+                      price == 0
+                          ? "Free"
+                          : "Rp. ${NumberFormat.decimalPattern('id_ID').format(price)}",
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: kPrimaryBlue,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(Icons.star, color: Colors.amber, size: 16),
+                        const SizedBox(width: 4),
+                        Text(
+                          "${widget.course['rating']} (${widget.course['reviewCount']})",
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: kDarkBlue.withOpacity(0.7),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -1347,13 +1407,16 @@ class _CourseCardState extends State<CourseCard> {
 }
 
 String? extractYoutubeId(String url) {
+  if (url == null || url.isEmpty) {
+    return null;
+  }
   final RegExp regExp = RegExp(
-    r'(?:v=|\/)([0-9A-Za-z_-]{11}).*',
+    r'(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|\/v\/|embed\/|v=)([0-9A-Za-z_-]{11}).*',
     caseSensitive: false,
     multiLine: false,
   );
   final match = regExp.firstMatch(url);
-  return match != null ? match.group(1) : null;
+  return match?.group(1);
 }
 
 class ShopSection extends StatefulWidget {
@@ -1366,6 +1429,7 @@ class ShopSection extends StatefulWidget {
 class _ShopSectionState extends State<ShopSection> {
   String _selectedFilter = "All Product";
   List<Map<String, dynamic>> _filteredProducts = [];
+
   @override
   void initState() {
     super.initState();
@@ -1374,26 +1438,37 @@ class _ShopSectionState extends State<ShopSection> {
 
   void _applyFilter() {
     setState(() {
+      if (widget.allProducts.isEmpty) {
+        _filteredProducts = [];
+        return;
+      }
+      List<Map<String, dynamic>> tempProducts;
+
       if (_selectedFilter == "All Product") {
-        _filteredProducts = List.from(widget.allProducts);
+        tempProducts = List.from(widget.allProducts);
       } else if (_selectedFilter == "Chess") {
-        _filteredProducts =
+        tempProducts =
             widget.allProducts
-                .where((product) => product['category'] == 'chess')
+                .where((product) => product['category'] == 'Chess')
                 .toList();
       } else if (_selectedFilter == "Items") {
-        _filteredProducts =
+        tempProducts =
             widget.allProducts
-                .where((product) => product['category'] == 'items')
+                .where((product) => product['category'] == 'Items')
                 .toList();
+      } else {
+        tempProducts = List.from(widget.allProducts);
       }
+      _filteredProducts = tempProducts;
     });
   }
 
   @override
   void didUpdateWidget(covariant ShopSection oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.allProducts != widget.allProducts) _applyFilter();
+    if (oldWidget.allProducts != widget.allProducts) {
+      _applyFilter();
+    }
   }
 
   Widget _buildFilterButton(String title) {
@@ -1401,11 +1476,12 @@ class _ShopSectionState extends State<ShopSection> {
     return Padding(
       padding: const EdgeInsets.only(right: 8.0),
       child: ElevatedButton(
-        onPressed:
-            () => setState(() {
-              _selectedFilter = title;
-              _applyFilter();
-            }),
+        onPressed: () {
+          setState(() {
+            _selectedFilter = title;
+            _applyFilter();
+          });
+        },
         style: ElevatedButton.styleFrom(
           backgroundColor: isActive ? kPrimaryBlue : kVeryLightBlue,
           foregroundColor: isActive ? kVeryLightBlue : kPrimaryBlue,
@@ -1428,6 +1504,7 @@ class _ShopSectionState extends State<ShopSection> {
   @override
   Widget build(BuildContext context) {
     final displayedProducts = _filteredProducts.take(4).toList();
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 20.0),
       child: Column(
@@ -1488,7 +1565,9 @@ class _ShopSectionState extends State<ShopSection> {
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 20.0),
                         child: Text(
-                          "No products found for '$_selectedFilter'",
+                          _selectedFilter == "All Product"
+                              ? "No products found."
+                              : "No products found in category '$_selectedFilter'.",
                           style: TextStyle(color: kDarkBlue.withOpacity(0.7)),
                         ),
                       ),
@@ -1531,9 +1610,16 @@ class _ProductCardState extends State<ProductCard> {
   Widget build(BuildContext context) {
     final formatCurrency = NumberFormat.decimalPattern('id_ID');
 
+    final String? imageUrl = widget.product['imageUrl'] as String?;
+
     return GestureDetector(
       onTap: () {
-        print("Product tapped: ${widget.product['name']}");
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ProductDetailScreen(product: widget.product),
+          ),
+        );
       },
       child: Container(
         decoration: BoxDecoration(
@@ -1558,33 +1644,24 @@ class _ProductCardState extends State<ProductCard> {
                   topLeft: Radius.circular(15.0),
                   topRight: Radius.circular(15.0),
                 ),
-                child: Image.network(
-                  widget.product['imageUrl']!,
-                  fit: BoxFit.cover,
-                  errorBuilder:
-                      (c, e, s) => Container(
-                        color: kLightBlue.withOpacity(0.3),
-                        child: Center(
-                          child: Icon(
-                            Icons.inventory_2_outlined,
-                            color: kVeryLightBlue.withOpacity(0.7),
-                            size: 40,
-                          ),
-                        ),
-                      ),
-                  loadingBuilder:
-                      (c, child, p) =>
-                          p == null
-                              ? child
-                              : const Center(
-                                child: CircularProgressIndicator(
-                                  color: kVeryLightBlue,
-                                ),
-                              ),
-                ),
+                // Area gambar/placeholder
+                child:
+                    // Tampilkan gambar dari asset jika imageUrl tersedia dan merupakan path asset
+                    imageUrl != null && imageUrl.startsWith('assets/')
+                        ? Image.asset(
+                          imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (c, e, s) {
+                            print(
+                              "Error loading product asset image: ${widget.product['name']} - $e",
+                            );
+                            return _buildPlaceholderIcon();
+                          },
+                        )
+                        // Jika imageUrl tidak ada atau bukan path asset, tampilkan placeholder
+                        : _buildPlaceholderIcon(),
               ),
             ),
-
             Flexible(
               flex: 4,
               child: Padding(
@@ -1607,7 +1684,7 @@ class _ProductCardState extends State<ProductCard> {
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox.shrink(),
+                        const SizedBox(height: 2),
                         Text(
                           widget.product['subtitle'] ?? 'Item',
                           style: TextStyle(
@@ -1619,7 +1696,6 @@ class _ProductCardState extends State<ProductCard> {
                         ),
                       ],
                     ),
-
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       crossAxisAlignment: CrossAxisAlignment.center,
@@ -1632,30 +1708,17 @@ class _ProductCardState extends State<ProductCard> {
                             color: Colors.white,
                           ),
                         ),
-
                         InkWell(
-                          onTap: () {
-                            // Panggil setState untuk memberitahu Flutter agar membangun ulang widget
-                            setState(() {
-                              // Balikkan nilai _isLiked
-                              _isLiked = !_isLiked;
-                            });
-                            print(
-                              "Like status for ${widget.product['name']} is now: $_isLiked",
-                            );
-                          },
+                          onTap: () => setState(() => _isLiked = !_isLiked),
                           customBorder: const CircleBorder(),
                           child: Container(
                             padding: const EdgeInsets.all(5),
                             decoration: BoxDecoration(
-                              // Warna background ikon sedikit lebih terang saat disukai
                               color: kVeryLightBlue.withOpacity(0.2),
                               shape: BoxShape.circle,
                             ),
                             child: Icon(
-                              // Ganti ikon berdasarkan status _isLiked
                               _isLiked ? Icons.favorite : Icons.favorite_border,
-                              // Ganti warna ikon menjadi merah saat disukai
                               color:
                                   _isLiked ? Colors.redAccent : kVeryLightBlue,
                               size: 18,
@@ -1669,6 +1732,23 @@ class _ProductCardState extends State<ProductCard> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  // Helper method untuk placeholder ikon
+  Widget _buildPlaceholderIcon() {
+    return Container(
+      color: const Color(0xFF517DB2), // Warna biru sesuai screenshot
+      child: Center(
+        child: Icon(
+          Icons
+              .insert_drive_file_outlined, // Icon yang menyerupai di screenshot
+          color: kVeryLightBlue.withOpacity(
+            0.6,
+          ), // Warna ikon sesuai screenshot
+          size: 60, // Ukuran ikon placeholder
         ),
       ),
     );
@@ -1730,7 +1810,7 @@ class _ArticleSectionState extends State<ArticleSection> {
               ),
             ),
           ),
-          const SizedBox(height: 5),
+          const SizedBox(height: 16),
           _displayedArticles.isEmpty
               ? Center(
                 child: Padding(
@@ -1753,22 +1833,52 @@ class _ArticleSectionState extends State<ArticleSection> {
                 itemCount: _displayedArticles.length,
                 itemBuilder: (context, index) {
                   final article = _displayedArticles[index];
+                  // Menggunakan ArticleCard yang onTap-nya diubah
                   return ArticleCard(article: article);
                 },
               ),
+          const SizedBox(height: 16),
+          Center(
+            child: TextButton(
+              onPressed: () {
+                print("See all articles pressed");
+                // TODO: Implement navigation to a dedicated article list/screen
+              },
+              child: Text(
+                "See all articles",
+                style: TextStyle(
+                  color: kPrimaryBlue,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
+// ArticleCard Widget (onTap diubah untuk navigasi)
 class ArticleCard extends StatelessWidget {
   final Map<String, dynamic> article;
   const ArticleCard({super.key, required this.article});
   @override
   Widget build(BuildContext context) {
+    // Ambil imageUrl dari data artikel
+    final String? imageUrl = article['imageUrl'] as String?;
+
     return GestureDetector(
-      onTap: () => print("Article tapped: ${article['title']}"),
+      onTap: () {
+        print("Article tapped: ${article['title']}");
+        // Navigasi ke ArticleDetailScreen saat card ditekan
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ArticleDetailScreen(article: article),
+          ),
+        );
+      },
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
@@ -1792,31 +1902,47 @@ class ArticleCard extends StatelessWidget {
                   topLeft: Radius.circular(15.0),
                   topRight: Radius.circular(15.0),
                 ),
-                child: Image.network(
-                  article['imageUrl']!,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder:
-                      (context, error, stackTrace) => Container(
-                        color: kLightBlue.withOpacity(0.2),
-                        child: Center(
-                          child: Icon(
-                            Icons.article_outlined,
-                            color: kDarkBlue.withOpacity(0.4),
-                            size: 40,
-                          ),
-                        ),
-                      ),
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return Center(
-                      child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(kPrimaryBlue),
-                        strokeWidth: 2.0,
-                      ),
-                    );
-                  },
-                ),
+                child:
+                    // --- Logika pemuatan gambar untuk Article Card ---
+                    imageUrl != null && imageUrl.isNotEmpty
+                        ? (imageUrl.startsWith(
+                              'assets/',
+                            ) // Cek jika itu path asset
+                            ? Image.asset(
+                              imageUrl,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              errorBuilder: (c, e, s) {
+                                print(
+                                  "Error loading article asset image: $imageUrl - $e",
+                                );
+                                return _buildErrorPlaceholder(); // Placeholder jika asset gagal
+                              },
+                            )
+                            : Image.network(
+                              // Jika bukan asset, coba network
+                              imageUrl,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              errorBuilder: (c, e, s) {
+                                print(
+                                  "Error loading article network image: $imageUrl - $e",
+                                );
+                                return _buildErrorPlaceholder(); // Placeholder jika network gagal
+                              },
+                              loadingBuilder: (c, child, p) {
+                                if (p == null) return child;
+                                return Center(
+                                  // Loading indicator
+                                  child: CircularProgressIndicator(
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      kPrimaryBlue,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ))
+                        : _buildErrorPlaceholder(), // Placeholder jika imageUrl null/kosong
               ),
             ),
             Expanded(
@@ -1829,9 +1955,10 @@ class ArticleCard extends StatelessWidget {
                   children: [
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          article['title']!,
+                          article['title'] ?? 'No Title',
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
@@ -1842,7 +1969,7 @@ class ArticleCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          article['summary']!,
+                          article['summary'] ?? 'No summary available.',
                           style: TextStyle(
                             fontSize: 11,
                             color: kDarkBlue.withOpacity(0.7),
@@ -1855,7 +1982,7 @@ class ArticleCard extends StatelessWidget {
                     Align(
                       alignment: Alignment.centerRight,
                       child: Text(
-                        article['date']!,
+                        article['date'] ?? 'No Date',
                         style: TextStyle(
                           fontSize: 10,
                           color: kDarkBlue.withOpacity(0.6),
@@ -1868,6 +1995,20 @@ class ArticleCard extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  // Helper method untuk placeholder gambar jika gagal dimuat
+  Widget _buildErrorPlaceholder() {
+    return Container(
+      color: kLightBlue.withOpacity(0.2), // Warna latar belakang placeholder
+      child: Center(
+        child: Icon(
+          Icons.article_outlined, // Ikon placeholder
+          color: kDarkBlue.withOpacity(0.4),
+          size: 40,
         ),
       ),
     );

@@ -1,8 +1,7 @@
-// File: lib/shop_screen.dart
-
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:intl/intl.dart';
+import 'product_detail_screen.dart';
 
 // --- Konstanta Warna ---
 const Color kDarkBlue = Color(0xFF000A26);
@@ -18,6 +17,131 @@ class ShopScreen extends StatefulWidget {
 }
 
 class _ShopScreenState extends State<ShopScreen> {
+  // =======================================================================
+  // PERUBAHAN 1: State "diangkat" dari CategoryAndProductSection ke sini
+  // =======================================================================
+  final TextEditingController _searchController = TextEditingController();
+  List<Map<String, dynamic>> _filteredProducts = [];
+  String _selectedCategory = "All Product";
+
+  // Data master produk sekarang ada di sini
+  final List<Map<String, dynamic>> _allProducts = [
+    {
+      "id": "p1",
+      "imageUrl": "assets/images/product1.png",
+      "name": "Beautiful Metal Chess Set",
+      "subtitle": "Chess Board",
+      "price": 99999,
+      "category": "Chess",
+      "description":
+          "Rasakan nuansa modern dan premium dengan set catur logam ini. Dibuat dengan presisi tinggi, setiap bidak memiliki bobot yang mantap dan detail yang tajam. Sempurna untuk permainan kompetitif maupun sebagai pajangan yang elegan di ruang kerja Anda.",
+    },
+    {
+      "id": "p2",
+      "imageUrl": "assets/images/product2.png",
+      "name": "Beautiful Handcrafted Wooden Chess Set",
+      "subtitle": "Chess Board",
+      "price": 149999,
+      "category": "Chess",
+      "description":
+          "Kembali ke akar klasik dengan set catur kayu buatan tangan ini. Setiap bidak diukir dengan teliti dari kayu Sheesham dan Boxwood, memberikan sentuhan hangat dan otentik. Papan catur yang kokoh melengkapi set yang abadi ini.",
+    },
+    {
+      "id": "p3",
+      "imageUrl": "assets/images/product3.png",
+      "name": "Elegant Glass Chess Set",
+      "subtitle": "Chess Board",
+      "price": 199999,
+      "category": "Chess",
+      "description":
+          "Lebih dari sekadar permainan, set catur kaca ini adalah sebuah karya seni. Desainnya yang transparan dan minimalis menciptakan tampilan yang menakjubkan di atas meja apa pun. Bidak yang bening dan buram memberikan kontras visual yang indah.",
+    },
+    {
+      "id": "p4",
+      "imageUrl": "assets/images/product4.png",
+      "name": "Luxurious Marble Chess Set",
+      "subtitle": "Chess Board",
+      "price": 129999,
+      "category": "Chess",
+      "description":
+          "Tingkatkan pengalaman bermain Anda dengan kemewahan set catur marmer. Setiap bidak dipoles dari batu marmer asli, memberikan bobot dan nuansa yang tak tertandingi. Pola alami batu membuat setiap set menjadi unik.",
+    },
+    {
+      "id": "p5",
+      "imageUrl": "assets/images/product5.png",
+      "name": "Chess Clock Digital Timer",
+      "subtitle": "Chess Items",
+      "price": 250000,
+      "category": "Items",
+      "description":
+          "Jam catur digital yang andal untuk pemain serius. Dilengkapi dengan mode bonus dan delay, jam ini memenuhi standar turnamen FIDE. Mudah dioperasikan, dengan layar besar yang jelas dan tombol yang responsif untuk permainan cepat.",
+    },
+    {
+      "id": "p6",
+      "imageUrl": "assets/images/product6.png",
+      "name": "Roll-Up Chess Board",
+      "subtitle": "Chess Items",
+      "price": 150000,
+      "category": "Items",
+      "description":
+          "Bawa permainan catur ke mana saja dengan papan catur gulung ini. Terbuat dari vinyl atau silikon berkualitas tinggi yang tahan lama dan mudah dibersihkan. Ringan dan portabel, ideal untuk klub catur, turnamen, atau bermain di taman.",
+    },
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    // Awalnya, tampilkan semua produk
+    _filteredProducts = List.from(_allProducts);
+    // Tambahkan listener ke search controller untuk memanggil fungsi filter setiap kali teks berubah
+    _searchController.addListener(_filterProducts);
+  }
+
+  @override
+  void dispose() {
+    _searchController.removeListener(_filterProducts);
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  // =======================================================================
+  // PERUBAHAN 2: Fungsi filter utama yang menggabungkan pencarian dan kategori
+  // =======================================================================
+  void _filterProducts() {
+    List<Map<String, dynamic>> tempProducts = List.from(_allProducts);
+    final query = _searchController.text.toLowerCase();
+
+    // 1. Filter berdasarkan kategori yang dipilih
+    if (_selectedCategory != "All Product") {
+      tempProducts =
+          tempProducts
+              .where((p) => p['category'] == _selectedCategory)
+              .toList();
+    }
+
+    // 2. Filter berdasarkan query pencarian dari hasil filter kategori
+    if (query.isNotEmpty) {
+      tempProducts =
+          tempProducts.where((product) {
+            final productName = product['name']!.toLowerCase();
+            return productName.contains(query);
+          }).toList();
+    }
+
+    // Update UI dengan produk yang sudah difilter
+    setState(() {
+      _filteredProducts = tempProducts;
+    });
+  }
+
+  // Fungsi untuk mengubah kategori dan memanggil filter ulang
+  void _updateCategory(String category) {
+    setState(() {
+      _selectedCategory = category;
+    });
+    _filterProducts();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -30,7 +154,6 @@ class _ShopScreenState extends State<ShopScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16.0),
             child: Text(
@@ -44,68 +167,54 @@ class _ShopScreenState extends State<ShopScreen> {
             ),
           ),
           const SizedBox(height: 20),
-
-          // Search Bar
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Stack(
-              alignment: Alignment.centerRight,
-              children: [
-                TextField(
-                  style: const TextStyle(color: kDarkBlue, fontSize: 16),
-                  decoration: InputDecoration(
-                    hintText: "Search",
-                    hintStyle: TextStyle(
-                      color: kDarkBlue.withOpacity(0.7),
-                      fontSize: 16,
-                    ),
-                    filled: true,
-                    fillColor: kLightBlue.withOpacity(0.6),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 18.0),
-                    prefixIcon: Padding(
-                      padding: const EdgeInsets.only(left: 20.0, right: 12.0),
-                      child: Icon(
-                        Icons.search,
-                        color: kDarkBlue.withOpacity(0.8),
-                        size: 24,
-                      ),
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(30.0),
-                      borderSide: BorderSide.none,
-                    ),
+            // =======================================================================
+            // PERUBAHAN 3: Menghapus Stack dan tombol filter
+            // =======================================================================
+            child: TextField(
+              controller:
+                  _searchController, // Hubungkan controller ke TextField
+              style: const TextStyle(color: kDarkBlue, fontSize: 16),
+              decoration: InputDecoration(
+                hintText: "Search product name...",
+                hintStyle: TextStyle(
+                  color: kDarkBlue.withOpacity(0.7),
+                  fontSize: 16,
+                ),
+                filled: true,
+                fillColor: kLightBlue.withOpacity(0.6),
+                contentPadding: const EdgeInsets.symmetric(vertical: 18.0),
+                prefixIcon: Padding(
+                  padding: const EdgeInsets.only(left: 20.0, right: 12.0),
+                  child: Icon(
+                    Icons.search,
+                    color: kDarkBlue.withOpacity(0.8),
+                    size: 24,
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.all(5.0),
-                  child: InkWell(
-                    onTap: () => print("Filter button tapped!"),
-                    customBorder: const CircleBorder(),
-                    child: Container(
-                      padding: const EdgeInsets.all(11),
-                      decoration: const BoxDecoration(
-                        color: kLightBlue,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.tune,
-                        color: kDarkBlue.withOpacity(0.9),
-                        size: 22.0,
-                      ),
-                    ),
-                  ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(30.0),
+                  borderSide: BorderSide.none,
                 ),
-              ],
+              ),
             ),
           ),
-
-          // Konten yang bisa di-scroll
           Expanded(
             child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
               child: Column(
-                children: const [
-                  DiscountBannerSection(),
-                  CategoryAndProductSection(),
+                children: [
+                  const DiscountBannerSection(),
+                  // =======================================================================
+                  // PERUBAHAN 4: Mengirim data dan fungsi ke widget anak
+                  // =======================================================================
+                  CategoryAndProductSection(
+                    products: _filteredProducts,
+                    selectedCategory: _selectedCategory,
+                    onCategorySelected: _updateCategory,
+                  ),
+                  const SizedBox(height: 20),
                 ],
               ),
             ),
@@ -117,7 +226,7 @@ class _ShopScreenState extends State<ShopScreen> {
 }
 
 // =======================================================================
-// WIDGET BANNER DISKON
+// WIDGET BANNER DISKON (Tidak ada perubahan)
 // =======================================================================
 class DiscountBannerSection extends StatefulWidget {
   const DiscountBannerSection({super.key});
@@ -129,18 +238,17 @@ class _DiscountBannerSectionState extends State<DiscountBannerSection> {
   late final PageController _pageController;
   Timer? _timer;
   int _currentPage = 0;
+
   final List<Map<String, String>> _bannerItems = [
     {
       "title": "50% OFF",
-      "subtitle": "05 - 10 July",
-      "imageUrl":
-          "https://m.media-amazon.com/images/I/81M7o+-V3CL._AC_SL1500_.jpg",
+      "subtitle": "Metal Chess Sets",
+      "imageUrl": "assets/images/product1.png",
     },
     {
       "title": "NEW ARRIVAL",
       "subtitle": "Glass Chess Sets",
-      "imageUrl":
-          "https://m.media-amazon.com/images/I/71v5Xyol6qL._AC_SL1500_.jpg",
+      "imageUrl": "assets/images/product3.png",
     },
   ];
 
@@ -248,7 +356,7 @@ class _DiscountBannerSectionState extends State<DiscountBannerSection> {
             flex: 4,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12.0),
-              child: Image.network(
+              child: Image.asset(
                 banner['imageUrl']!,
                 fit: BoxFit.cover,
                 height: double.infinity,
@@ -278,104 +386,27 @@ class _DiscountBannerSectionState extends State<DiscountBannerSection> {
 }
 
 // =======================================================================
-// WIDGET KATEGORI DAN PRODUK
+// PERUBAHAN 5: Widget ini sekarang menerima data dari parent-nya
 // =======================================================================
-class CategoryAndProductSection extends StatefulWidget {
-  const CategoryAndProductSection({super.key});
-  @override
-  State<CategoryAndProductSection> createState() =>
-      _CategoryAndProductSectionState();
-}
+class CategoryAndProductSection extends StatelessWidget {
+  final List<Map<String, dynamic>> products;
+  final String selectedCategory;
+  final Function(String) onCategorySelected;
 
-class _CategoryAndProductSectionState extends State<CategoryAndProductSection> {
-  String _selectedFilter = "All Product";
-  List<Map<String, dynamic>> _filteredProducts = [];
-  final List<Map<String, dynamic>> _allProducts = [
-    {
-      "id": "p1",
-      "imageUrl":
-          "https://m.media-amazon.com/images/I/71zVVEVB5tL._AC_SL1500_.jpg",
-      "name": "Beautiful Metal Chess Set",
-      "subtitle": "Chess Board",
-      "price": 99999,
-      "category": "Chess",
-    },
-    {
-      "id": "p2",
-      "imageUrl":
-          "https://m.media-amazon.com/images/I/81M7o+-V3CL._AC_SL1500_.jpg",
-      "name": "Beautiful Handcrafted Wooden Chess Set",
-      "subtitle": "Chess Board",
-      "price": 149999,
-      "category": "Chess",
-    },
-    {
-      "id": "p3",
-      "imageUrl":
-          "https://m.media-amazon.com/images/I/71v5Xyol6qL._AC_SL1500_.jpg",
-      "name": "Elegant Glass Chess Set",
-      "subtitle": "Chess Board",
-      "price": 199999,
-      "category": "Chess",
-    },
-    {
-      "id": "p4",
-      "imageUrl":
-          "https://m.media-amazon.com/images/I/71UohSAT3DL._AC_SL1500_.jpg",
-      "name": "Luxurious Marble Chess Set",
-      "subtitle": "Chess Board",
-      "price": 129999,
-      "category": "Chess",
-    },
-    {
-      "id": "p5",
-      "imageUrl":
-          "https://m.media-amazon.com/images/I/61O23yq4mDL._AC_SL1000_.jpg",
-      "name": "Chess Clock Digital Timer",
-      "subtitle": "Chess Items",
-      "price": 250000,
-      "category": "Items",
-    },
-    {
-      "id": "p6",
-      "imageUrl":
-          "https://m.media-amazon.com/images/I/71g7g9WnB2L._AC_SL1500_.jpg",
-      "name": "Roll-Up Chess Board",
-      "subtitle": "Chess Items",
-      "price": 150000,
-      "category": "Items",
-    },
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _applyFilter();
-  }
-
-  void _applyFilter() {
-    setState(() {
-      if (_selectedFilter == "All Product") {
-        _filteredProducts = List.from(_allProducts);
-      } else {
-        _filteredProducts =
-            _allProducts
-                .where((p) => p['category'] == _selectedFilter)
-                .toList();
-      }
-    });
-  }
+  const CategoryAndProductSection({
+    super.key,
+    required this.products,
+    required this.selectedCategory,
+    required this.onCategorySelected,
+  });
 
   Widget _buildFilterButton(String title) {
-    bool isActive = _selectedFilter == title;
+    bool isActive = selectedCategory == title;
     return Padding(
       padding: const EdgeInsets.only(right: 8.0),
       child: ElevatedButton(
-        onPressed:
-            () => setState(() {
-              _selectedFilter = title;
-              _applyFilter();
-            }),
+        // Panggil callback function yang diberikan oleh parent
+        onPressed: () => onCategorySelected(title),
         style: ElevatedButton.styleFrom(
           backgroundColor: isActive ? kPrimaryBlue : kVeryLightBlue,
           foregroundColor: isActive ? kVeryLightBlue : kPrimaryBlue,
@@ -422,6 +453,7 @@ class _CategoryAndProductSectionState extends State<CategoryAndProductSection> {
             ),
           ),
           const SizedBox(height: 20),
+          // Gunakan data 'products' yang diterima dari parent
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
@@ -431,9 +463,9 @@ class _CategoryAndProductSectionState extends State<CategoryAndProductSection> {
               mainAxisSpacing: 16,
               childAspectRatio: 0.72,
             ),
-            itemCount: _filteredProducts.length,
+            itemCount: products.length,
             itemBuilder: (context, index) {
-              return ProductCard(product: _filteredProducts[index]);
+              return ProductCard(product: products[index]);
             },
           ),
         ],
@@ -443,7 +475,7 @@ class _CategoryAndProductSectionState extends State<CategoryAndProductSection> {
 }
 
 // =======================================================================
-// WIDGET KARTU PRODUK (digabung di sini)
+// WIDGET KARTU PRODUK (Tidak ada perubahan)
 // =======================================================================
 class ProductCard extends StatefulWidget {
   final Map<String, dynamic> product;
@@ -461,7 +493,14 @@ class _ProductCardState extends State<ProductCard> {
     final formatCurrency = NumberFormat.decimalPattern('id_ID');
 
     return GestureDetector(
-      onTap: () => print("Product tapped: ${widget.product['name']}"),
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ProductDetailScreen(product: widget.product),
+          ),
+        );
+      },
       child: Container(
         decoration: BoxDecoration(
           color: kPrimaryBlue,
@@ -485,7 +524,7 @@ class _ProductCardState extends State<ProductCard> {
                   topLeft: Radius.circular(15.0),
                   topRight: Radius.circular(15.0),
                 ),
-                child: Image.network(
+                child: Image.asset(
                   widget.product['imageUrl']!,
                   fit: BoxFit.cover,
                   errorBuilder:
@@ -493,21 +532,12 @@ class _ProductCardState extends State<ProductCard> {
                         color: kLightBlue.withOpacity(0.3),
                         child: Center(
                           child: Icon(
-                            Icons.inventory_2_outlined,
+                            Icons.broken_image_outlined,
                             color: kVeryLightBlue.withOpacity(0.7),
                             size: 40,
                           ),
                         ),
                       ),
-                  loadingBuilder:
-                      (c, child, p) =>
-                          p == null
-                              ? child
-                              : const Center(
-                                child: CircularProgressIndicator(
-                                  color: kVeryLightBlue,
-                                ),
-                              ),
                 ),
               ),
             ),
