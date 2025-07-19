@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -28,10 +30,24 @@ class _SplashScreenState extends State<SplashScreen>
       begin: 0.7,
       end: 1.0,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.elasticOut));
+
     _controller.forward();
-    Future.delayed(const Duration(milliseconds: 3000), () {
+
+    _checkAuthAndNavigate();
+  }
+
+  Future<void> _checkAuthAndNavigate() async {
+    await Future.delayed(const Duration(milliseconds: 3000));
+
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (!mounted) return;
+
+    if (user != null) {
+      Navigator.pushReplacementNamed(context, '/home');
+    } else {
       Navigator.pushReplacementNamed(context, '/cta');
-    });
+    }
   }
 
   @override
@@ -43,13 +59,27 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF07143B),
-      body: Center(
-        child: FadeTransition(
-          opacity: _fadeAnimation,
-          child: ScaleTransition(
-            scale: _scaleAnimation,
-            child: Image.asset('assets/images/img_logo.png', height: 120),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFF000A26),
+              Color(0xFF001759),
+              Color(0xFF001E73),
+              Color(0xFF00258C),
+            ],
+            stops: [0.0, 0.5, 0.75, 1.0],
+          ),
+        ),
+        child: Center(
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: ScaleTransition(
+              scale: _scaleAnimation,
+              child: Image.asset('assets/images/img_logo.png', height: 120),
+            ),
           ),
         ),
       ),

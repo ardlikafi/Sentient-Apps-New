@@ -45,5 +45,27 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>CFBundleURLTypes</key>
+    <array>
+      <dict>
+      <key>CFBundleURLSchemes</key>
+      <array>
+        <string>fbPASTE_YOUR_FACEBOOK_APP_ID_HERE</string>
+      </array>
+      </dict>
+    </array>
+    <key>FacebookAppID</key>
+    <string>PASTE_YOUR_FACEBOOK_APP_ID_HERE</string>
+    <key>FacebookClientToken</key>
+    <string>PASTE_YOUR_FACEBOOK_CLIENT_TOKEN_HERE</string>
+    <key>FacebookDisplayName</key>
+    <string>Sentient Chess</string>
+    <key>LSApplicationQueriesSchemes</key>
+    <array>
+      <string>fbapi</string>
+      <string>fb-messenger-api</string>
+      <string>fbauth2</string>
+      <string>fbshareextension</string>
+    </array>
 </dict>
 </plist>
