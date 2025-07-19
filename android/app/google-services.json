@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "815651012630",
+    "project_id": "sentient-chess-app",
+    "storage_bucket": "sentient-chess-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:815651012630:android:37c12e54792f9e2d3ff537",
+        "android_client_info": {
+          "package_name": "com.example.sentient_new"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCzlL748dlENTA_qzNcAA5lJuO6SzIM6OE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,21 +1,33 @@
-// File: lib/product_detail_screen.dart
-
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'liked_products_provider.dart';
+
+const Color kDarkBlue = Color(0xFF000A26);
+const Color kPrimaryBlue = Color(0xFF0F52BA);
+const Color kLightBlue = Color(0xFFA6C6D8);
+const Color kVeryLightBlue = Color(0xFFD6E5F2);
+
+const Color kAppBarGradientStart = Color(0xFF000A26);
+const Color kAppBarGradientMid = Color(0xFF001759);
+const Color kAppBarGradientEnd = Color(0xFF00207B);
 
 class ProductDetailScreen extends StatefulWidget {
   final Map<String, dynamic> product;
 
   const ProductDetailScreen({Key? key, required this.product})
-    : super(key: key);
+      : super(key: key);
 
   @override
   State<ProductDetailScreen> createState() => _ProductDetailScreenState();
 }
 
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
-  bool _isLiked = false;
+  final double imageHeight = 300.0;
+  final double contentOverlap = 30.0;
+
   String? _selectedSize;
   final List<String> _sizes = ['25 cm', '50 cm', '75 cm'];
 
@@ -26,8 +38,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     try {
       await launchUrl(url);
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text('Error: Could not launch URL'),
           backgroundColor: Colors.redAccent,
         ),
@@ -37,206 +50,239 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
+    final likedProvider = Provider.of<LikedProductsProvider>(context);
+    final bool isLiked = likedProvider.isLiked(widget.product['id']!);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF000A26),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: const Text(
-          'Product Detail',
-          style: TextStyle(
-            fontFamily: 'Poppins',
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
+        systemOverlayStyle: SystemUiOverlayStyle.light,
+        leading: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: CircleAvatar(
+            backgroundColor: kPrimaryBlue.withOpacity(0.5),
+            child: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
           ),
         ),
+        title: const Text(
+          "Product Detail",
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
         centerTitle: true,
-      ),
-      body: SafeArea(
-        top: false,
-        bottom: true,
-        child: Stack(
-          children: [
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              // =======================================================================
-              // PERUBAHAN DI SINI: Mengganti Image.network dengan Image.asset
-              // =======================================================================
-              child: Image.asset(
-                widget.product['imageUrl']!,
-                height: screenHeight * 0.45,
-                fit: BoxFit.cover,
-                errorBuilder:
-                    (c, e, s) => Container(
-                      color: Colors.grey[200],
-                      child: const Center(
-                        child: Icon(Icons.broken_image, size: 50),
-                      ),
-                    ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: CircleAvatar(
+              backgroundColor: kPrimaryBlue.withOpacity(0.5),
+              child: IconButton(
+                icon: Icon(
+                  isLiked ? Icons.favorite : Icons.favorite_border,
+                  color: isLiked ? Colors.redAccent : Colors.white,
+                  size: 20,
+                ),
+                onPressed: () {
+                  likedProvider.toggleLike(widget.product['id']!);
+                },
               ),
             ),
-            Positioned.fill(
-              top: screenHeight * 0.35,
-              child: Container(
-                decoration: const BoxDecoration(
-                  color: Color(0xFFE8F0F9),
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(30.0),
-                    topRight: Radius.circular(30.0),
-                  ),
-                ),
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  widget.product['subtitle']!,
-                                  style: const TextStyle(
-                                    fontFamily: 'Poppins',
-                                    fontSize: 16,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  widget.product['name']!,
-                                  style: const TextStyle(
-                                    fontFamily: 'Poppins',
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 26,
-                                    color: Color(0xFF0A1128),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _isLiked = !_isLiked;
-                              });
-                            },
-                            child: Container(
-                              margin: const EdgeInsets.only(left: 16),
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.grey.withOpacity(0.2),
-                                    spreadRadius: 1,
-                                    blurRadius: 5,
-                                  ),
-                                ],
-                              ),
-                              child: Icon(
-                                _isLiked
-                                    ? Icons.favorite
-                                    : Icons.favorite_border,
-                                color:
-                                    _isLiked ? Colors.redAccent : Colors.grey,
-                                size: 28,
+          ),
+        ],
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                kAppBarGradientStart,
+                kAppBarGradientMid,
+                kAppBarGradientEnd,
+              ],
+              stops: [0.0, 0.66, 1.0],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+          ),
+        ),
+      ),
+      backgroundColor: kDarkBlue,
+      body: Stack(
+        children: [
+          SizedBox(
+            height: imageHeight,
+            width: double.infinity,
+            child: Image.asset(
+              widget.product['imageUrl']!,
+              fit: BoxFit.cover,
+              errorBuilder: (c, e, s) =>
+                  Container(color: kDarkBlue.withOpacity(0.5)),
+            ),
+          ),
+
+          LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: IntrinsicHeight(
+                    child: Column(
+                      children: [
+                        SizedBox(height: imageHeight - contentOverlap),
+                        Expanded(
+                          child: Container(
+                            width: double.infinity,
+                            decoration: const BoxDecoration(
+                              color: kVeryLightBlue,
+                              borderRadius: BorderRadius.only(
+                                topLeft: Radius.circular(30.0),
+                                topRight: Radius.circular(30.0),
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        widget.product['description']!,
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 15,
-                          color: Colors.black54,
-                          height: 1.5,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      const Text(
-                        "Size",
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF0A1128),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children:
-                            _sizes.map((size) => _buildSizeChip(size)).toList(),
-                      ),
-                      const SizedBox(height: 32),
-                      SizedBox(
-                        width: 180,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF003CC5),
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            elevation: 5,
-                          ),
-                          onPressed: () {
-                            if (_selectedSize == null) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Silakan pilih ukuran terlebih dahulu.',
-                                  ),
-                                  backgroundColor: Colors.redAccent,
-                                ),
-                              );
-                              return;
-                            }
-                            _launchTokopediaUrl();
-                          },
-                          child: const Text(
-                            'Buy Now',
-                            style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                            child: Padding(
+                              padding: const EdgeInsets.all(24.0),
+                              child: _buildProductContent(),
                             ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProductContent() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          widget.product['subtitle']!,
+          style: TextStyle(
+            fontFamily: 'Poppins',
+            fontSize: 14,
+            color: kDarkBlue.withOpacity(0.7),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          widget.product['name']!,
+          style: const TextStyle(
+            fontFamily: 'Poppins',
+            fontWeight: FontWeight.bold,
+            fontSize: 22,
+            color: kDarkBlue,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          widget.product['description']!,
+          style: const TextStyle(
+            fontFamily: 'Poppins',
+            fontSize: 15,
+            color: Colors.black54,
+            height: 1.5,
+          ),
+        ),
+        const SizedBox(height: 24),
+        const Text(
+          "Size",
+          style: TextStyle(
+            fontFamily: 'Poppins',
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: kDarkBlue,
+          ),
+        ),
+        const SizedBox(height: 12),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          child: Row(
+            children: _sizes.map((size) => _buildSizeChip(size)).toList(),
+          ),
+        ),
+        const SizedBox(height: 32),
+        _buildBuyNowButton(),
+      ],
+    );
+  }
+
+  Widget _buildBuyNowButton() {
+    final formatCurrency = NumberFormat.decimalPattern('id_ID');
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Price",
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 14,
+                color: Colors.grey,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              "Rp. ${formatCurrency.format(widget.product['price'])}",
+              style: const TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: kDarkBlue,
               ),
             ),
           ],
         ),
-      ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: kPrimaryBlue,
+            padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            elevation: 5,
+          ),
+          onPressed: () {
+            if (_selectedSize == null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Silakan pilih ukuran terlebih dahulu.'),
+                  backgroundColor: Colors.redAccent,
+                ),
+              );
+              return;
+            }
+            _launchTokopediaUrl();
+          },
+          child: const Text(
+            'Buy Now',
+            style: TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
   Widget _buildSizeChip(String size) {
     bool isSelected = _selectedSize == size;
-    const Color kSelectedColor = Color(0xFF0F52BA);
-    const Color kDefaultColor = Color(0xFFD6E5F2);
+    const Color kSelectedColor = kPrimaryBlue;
+    const Color kDefaultColor = Colors.white;
 
     return GestureDetector(
       onTap: () {
@@ -249,16 +295,19 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         margin: const EdgeInsets.only(right: 12.0),
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected ? kSelectedColor : kDefaultColor,
-          borderRadius: BorderRadius.circular(12.0),
-        ),
+            color: isSelected ? kSelectedColor : kDefaultColor,
+            borderRadius: BorderRadius.circular(12.0),
+            border: Border.all(
+              color: isSelected ? kSelectedColor : kLightBlue,
+              width: 1.5,
+            )),
         child: Text(
           size,
           style: TextStyle(
             fontFamily: 'Poppins',
             fontWeight: FontWeight.bold,
             fontSize: 16,
-            color: isSelected ? kDefaultColor : kSelectedColor,
+            color: isSelected ? Colors.white : kPrimaryBlue,
           ),
         ),
       ),

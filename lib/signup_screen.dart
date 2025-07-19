@@ -4,8 +4,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'dart:async';
-import 'api_service.dart';
+import 'firebase_service.dart';
 import 'animated_route.dart';
+import 'verify_email_screen.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -170,97 +171,43 @@ class _SignUpScreenState extends State<SignUpScreen> {
     });
 
     try {
-      final result = await ApiService.register(
+      final userCredential = await FirebaseService.register(
         username: _usernameController.text,
         email: _emailController.text,
         password: _passwordController.text,
-        passwordConfirmation: _passwordConfirmationController.text,
-        avatar: _profileImage,
-      ).timeout(
-        const Duration(seconds: 10),
-        onTimeout: () {
-          throw TimeoutException(
-            'Koneksi ke server timeout. Pastikan server berjalan dan dapat diakses.',
-          );
-        },
       );
 
       if (!mounted) return;
 
-      setState(() {
-        _loading = false;
-      });
-
-      if (result != null) {
-        if (result['status'] == 'success') {
-          // Tampilkan snackbar sukses
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Registrasi berhasil! Silakan login.'),
-              backgroundColor: Colors.green,
-            ),
-          );
-
-          // Navigate ke login
-          Navigator.pushReplacementNamed(context, '/login');
-        } else {
-          setState(() {
-            _error =
-                result['message'] ?? 'Registrasi gagal. Silakan coba lagi.';
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(_error ?? 'Terjadi kesalahan'),
-              backgroundColor: Colors.red,
-            ),
-          );
+      if (userCredential != null) {
+        if (_profileImage != null) {
+          await FirebaseService.uploadAvatar(_profileImage!);
         }
+
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const VerifyEmailScreen()),
+        );
       } else {
         setState(() {
-          _error = 'Terjadi kesalahan pada server. Silakan coba lagi.';
+          _error = 'Registrasi gagal. Silakan coba lagi.';
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_error ?? 'Terjadi kesalahan'),
-            backgroundColor: Colors.red,
-          ),
-        );
       }
-    } on TimeoutException catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _loading = false;
-        _error = e.message;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.message ?? 'Koneksi timeout'),
-          backgroundColor: Colors.red,
-        ),
-      );
     } catch (e) {
-      if (!mounted) return;
       setState(() {
-        _loading = false;
         _error = 'Terjadi kesalahan: ${e.toString()}';
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_error ?? 'Terjadi kesalahan'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      print('Error during register: $e');
+    } finally {
+      setState(() {
+        _loading = false;
+      });
     }
   }
 
   void _submit() {
     if (_formKey.currentState!.validate()) {
-      // Proses pendaftaran
-      // _profileImage berisi file foto profil jika ada
       Navigator.of(context).pushAndRemoveUntil(
         FadeRoute(page: const HomeScreen()),
-        (route) => false,
+            (route) => false,
       );
     }
   }
@@ -290,7 +237,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   constraints: BoxConstraints(minHeight: constraints.maxHeight),
                   child: IntrinsicHeight(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 36.0),
+                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
                       child: Form(
                         key: _formKey,
                         child: Column(
@@ -307,13 +254,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                   child: IconButton(
                                     icon: Image.asset(
                                       'assets/icons/ic_back.png',
-                                      height: 32,
+                                      height: 24,
                                     ),
                                     onPressed: () => Navigator.pop(context),
                                   ),
                                 ),
                                 const SizedBox(height: 8),
-                                // Profile Photo
                                 Center(
                                   child: Column(
                                     children: [
@@ -325,19 +271,19 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                           ),
                                           radius: 56,
                                           child:
-                                              _profileImage != null
-                                                  ? ClipOval(
-                                                    child: Image.file(
-                                                      _profileImage!,
-                                                      width: 100,
-                                                      height: 100,
-                                                      fit: BoxFit.cover,
-                                                    ),
-                                                  )
-                                                  : Image.asset(
-                                                    'assets/icons/ic_add_photo.png',
-                                                    height: 72,
-                                                  ),
+                                          _profileImage != null
+                                              ? ClipOval(
+                                            child: Image.file(
+                                              _profileImage!,
+                                              width: 100,
+                                              height: 100,
+                                              fit: BoxFit.cover,
+                                            ),
+                                          )
+                                              : Image.asset(
+                                            'assets/icons/ic_add_photo.png',
+                                            height: 72,
+                                          ),
                                         ),
                                       ),
                                       const SizedBox(height: 12),
@@ -354,7 +300,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                   ),
                                 ),
                                 const SizedBox(height: 32),
-                                // Email
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
@@ -372,9 +317,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                       controller: _emailController,
                                       validator:
                                           (v) =>
-                                              v == null || !v.contains('@')
-                                                  ? 'Email tidak valid'
-                                                  : null,
+                                      v == null || !v.contains('@')
+                                          ? 'Email tidak valid'
+                                          : null,
                                       decoration: InputDecoration(
                                         filled: true,
                                         fillColor: const Color(0xFFE3F0FF),
@@ -403,7 +348,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                   ],
                                 ),
                                 const SizedBox(height: 24),
-                                // Password
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
@@ -422,9 +366,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                       obscureText: _obscurePassword,
                                       validator:
                                           (v) =>
-                                              v == null || v.length < 6
-                                                  ? 'Password minimal 6 karakter'
-                                                  : null,
+                                      v == null || v.length < 6
+                                          ? 'Password minimal 6 karakter'
+                                          : null,
                                       decoration: InputDecoration(
                                         filled: true,
                                         fillColor: const Color(0xFFE3F0FF),
@@ -447,7 +391,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                           onPressed: () {
                                             setState(() {
                                               _obscurePassword =
-                                                  !_obscurePassword;
+                                              !_obscurePassword;
                                             });
                                           },
                                         ),
@@ -467,7 +411,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                   ],
                                 ),
                                 const SizedBox(height: 24),
-                                // Password Confirmation
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
@@ -483,7 +426,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                     const SizedBox(height: 8),
                                     TextFormField(
                                       controller:
-                                          _passwordConfirmationController,
+                                      _passwordConfirmationController,
                                       obscureText: _obscurePasswordConfirmation,
                                       validator: (value) {
                                         if (value == null || value.isEmpty) {
@@ -516,7 +459,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                           onPressed: () {
                                             setState(() {
                                               _obscurePasswordConfirmation =
-                                                  !_obscurePasswordConfirmation;
+                                              !_obscurePasswordConfirmation;
                                             });
                                           },
                                         ),
@@ -536,7 +479,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                   ],
                                 ),
                                 const SizedBox(height: 24),
-                                // Username
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
@@ -554,9 +496,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                       controller: _usernameController,
                                       validator:
                                           (v) =>
-                                              v == null || v.isEmpty
-                                                  ? 'Username wajib diisi'
-                                                  : null,
+                                      v == null || v.isEmpty
+                                          ? 'Username wajib diisi'
+                                          : null,
                                       decoration: InputDecoration(
                                         filled: true,
                                         fillColor: const Color(0xFFE3F0FF),
@@ -617,7 +559,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               ],
                             ),
                             Spacer(),
-                            // Create Account Button
                             Padding(
                               padding: const EdgeInsets.only(bottom: 32.0),
                               child: SizedBox(
@@ -634,27 +575,27 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                   ),
                                   onPressed: _loading ? null : _register,
                                   child:
-                                      _loading
-                                          ? const SizedBox(
-                                            height: 20,
-                                            width: 20,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              valueColor:
-                                                  AlwaysStoppedAnimation<Color>(
-                                                    Colors.white,
-                                                  ),
-                                            ),
-                                          )
-                                          : const Text(
-                                            'Create Account',
-                                            style: TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.white,
-                                              fontFamily: 'Poppins',
-                                            ),
-                                          ),
+                                  _loading
+                                      ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor:
+                                      AlwaysStoppedAnimation<Color>(
+                                        Colors.white,
+                                      ),
+                                    ),
+                                  )
+                                      : const Text(
+                                    'Create Account',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                      fontFamily: 'Poppins',
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
