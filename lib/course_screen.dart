@@ -1,16 +1,15 @@
 // File: lib/course_screen.dart
 
 import 'package:flutter/material.dart';
-import 'dart:math'; // Untuk memilih kata-kata acak
+import 'dart:math';
 import 'dart:async';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
-import 'api_service.dart'; // Menggunakan path relatif karena file berada di folder yang sama
+import 'api_service.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 import 'dart:io';
 
-// Definisikan konstanta warna di sini atau impor dari file lain
+// Definisikan konstanta warna
 const Color kDarkBlue = Color(0xFF000A26);
 const Color kPrimaryBlue = Color(0xFF0F52BA);
 const Color kLightBlue = Color(0xFFA6C6D8);
@@ -134,21 +133,15 @@ class _CourseScreenState extends State<CourseScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kVeryLightBlue, // Warna background utama halaman
+      backgroundColor: kVeryLightBlue,
       body: SingleChildScrollView(
-        // Bungkus Column utama dengan SingleChildScrollView
         child: Column(
           children: [
             _buildCourseHeader(context),
-            _buildCourseStatsSection(
-              context,
-            ), // Section statistik ditambahkan di sini
-            const RecommendationSection(), // Konten lain dari halaman course akan ditambahkan di bawah ini
+            _buildCourseStatsSection(context),
+            const RecommendationSection(),
             const CourseFilterAndListSection(),
-            Padding(
-              // Tambahkan Padding agar konten berikutnya tidak terlalu mepet
-              padding: const EdgeInsets.all(16.0),
-            ),
+            const Padding(padding: EdgeInsets.all(16.0)),
           ],
         ),
       ),
@@ -218,7 +211,6 @@ class _CourseScreenState extends State<CourseScreen> {
 
     return Stack(
       children: [
-        // Layer 1: Gradient Background dengan Konten di dalamnya
         Container(
           width: double.infinity,
           padding: EdgeInsets.only(
@@ -287,7 +279,7 @@ class _CourseScreenState extends State<CourseScreen> {
                 child: Text(
                   _motivationalQuote,
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontFamily: 'Poppins',
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -298,7 +290,6 @@ class _CourseScreenState extends State<CourseScreen> {
             ],
           ),
         ),
-        // Layer 2: Gambar Bintik-bintik
         Positioned.fill(
           child: ClipRRect(
             borderRadius: const BorderRadius.only(
@@ -306,12 +297,11 @@ class _CourseScreenState extends State<CourseScreen> {
               bottomRight: Radius.circular(35),
             ),
             child: Opacity(
-              opacity: 1, // Opacity yang diubah agar lebih subtle
+              opacity: 1,
               child: Image.asset(
-                "assets/images/bg_titik.png", // PASTIKAN PATH INI BENAR dan aset valid
+                "assets/images/bg_titik.png",
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) {
-                  print("Error loading dots_background.png: $error");
                   return const SizedBox.shrink();
                 },
               ),
@@ -322,7 +312,6 @@ class _CourseScreenState extends State<CourseScreen> {
     );
   }
 
-  // WIDGET BARU UNTUK SECTION STATISTIK COURSE
   Widget _buildCourseStatsSection(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 24.0),
@@ -352,7 +341,6 @@ class _CourseScreenState extends State<CourseScreen> {
     );
   }
 
-  // Helper widget untuk setiap item statistik
   Widget _buildStatItem(
     BuildContext context, {
     required String iconPath,
@@ -369,14 +357,12 @@ class _CourseScreenState extends State<CourseScreen> {
             padding: const EdgeInsets.all(10.0),
             child: Image.asset(
               iconPath,
-              // color: kPrimaryBlue, // Uncomment jika ikon perlu diwarnai
               errorBuilder: (context, error, stackTrace) {
-                print("Error loading stat icon $label: $error");
-                return Icon(
+                return const Icon(
                   Icons.bookmark_border,
                   color: kPrimaryBlue,
                   size: 28,
-                ); // Fallback icon
+                );
               },
             ),
           ),
@@ -384,7 +370,7 @@ class _CourseScreenState extends State<CourseScreen> {
         const SizedBox(height: 8),
         Text(
           count.toString(),
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
             color: kDarkBlue,
@@ -413,26 +399,25 @@ class RecommendationSection extends StatefulWidget {
 }
 
 class _RecommendationSectionState extends State<RecommendationSection> {
-  // Logika disalin dari EventSection
   late final PageController _pageController;
   Timer? _timer;
   int _currentPage = 0;
 
   final List<Map<String, String>> _recommendationList = [
     {
-      "imageUrl": "assets/images/hikaru.png", // asset lokal
+      "imageUrl": "assets/images/hikaru.png",
       "title": "Studi With Hikaru",
       "subtitle": "Only \$4",
       "buttonText": "Get Now",
     },
     {
-      "imageUrl": "assets/images/magnus.png", // asset lokal, perbaiki ke .jpg
+      "imageUrl": "assets/images/magnus.png",
       "title": "Masterclass with Magnus",
       "subtitle": "Limited Seats!",
       "buttonText": "Join Now",
     },
     {
-      "imageUrl": "assets/images/gotham.png", // asset lokal
+      "imageUrl": "assets/images/gotham.png",
       "title": "GothamChess Bootcamp",
       "subtitle": "Become a Chess Bruh",
       "buttonText": "Buy",
@@ -483,9 +468,8 @@ class _RecommendationSectionState extends State<RecommendationSection> {
             ),
           ),
           const SizedBox(height: 12),
-          // Menggunakan PageView untuk carousel
           SizedBox(
-            height: 140, // Tinggi banner
+            height: 140,
             child: PageView.builder(
               controller: _pageController,
               itemCount: _recommendationList.length,
@@ -497,7 +481,6 @@ class _RecommendationSectionState extends State<RecommendationSection> {
             ),
           ),
           const SizedBox(height: 12),
-          // Indikator titik
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: List.generate(
@@ -526,12 +509,10 @@ class _RecommendationSectionState extends State<RecommendationSection> {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12.0),
               child: Image.asset(
-                // Mengubah dari Image.network ke Image.asset
                 recommendation['imageUrl']!,
                 fit: BoxFit.cover,
                 height: double.infinity,
                 errorBuilder: (context, error, stackTrace) {
-                  print("Error loading recommendation image: $error");
                   return Container(
                     height: double.infinity,
                     color: kLightBlue.withOpacity(0.3),
@@ -548,10 +529,8 @@ class _RecommendationSectionState extends State<RecommendationSection> {
             ),
           ),
           const SizedBox(width: 16),
-
-          // ### PERUBAHAN 2: Tambah flex untuk teks ###
           Expanded(
-            flex: 5, // Diberi ruang lebih banyak
+            flex: 5,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -582,19 +561,16 @@ class _RecommendationSectionState extends State<RecommendationSection> {
                     ),
                   ],
                 ),
-
-                // ### PERUBAHAN 3 (Opsional tapi direkomendasikan): Buat tombol lebih ringkas ###
                 ElevatedButton(
                   onPressed: () {},
                   style: ElevatedButton.styleFrom(
                     backgroundColor: kVeryLightBlue,
                     foregroundColor: kPrimaryBlue,
-                    // Tap target size diatur agar tidak menambah padding internal yang tidak perlu
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 18,
                       vertical: 6,
-                    ), // Padding lebih kecil
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
@@ -648,8 +624,7 @@ class _CourseFilterAndListSectionState
       "reviewCount": 50,
       "category": "Beginner",
       "youtube_url": "https://www.youtube.com/watch?v=NAIQyoPcjNM",
-      "description":
-          "Learn the complete basics of chess with this comprehensive guide. Perfect for beginners who want to start their chess journey.",
+      "description": "Learn the complete basics of chess.",
     },
     {
       "id": "c2",
@@ -661,8 +636,7 @@ class _CourseFilterAndListSectionState
       "category": "Intermediate",
       "isPopular": true,
       "youtube_url": "https://www.youtube.com/watch?v=6h5Z0Uc-CnQ",
-      "description":
-          "Master essential tactical patterns and strategic concepts to improve your game.",
+      "description": "Master essential tactical patterns.",
     },
     {
       "id": "c3",
@@ -673,8 +647,7 @@ class _CourseFilterAndListSectionState
       "reviewCount": 30,
       "category": "Expert",
       "youtube_url": "https://www.youtube.com/watch?v=6h5Z0Uc-CnQ",
-      "description":
-          "Build a strong opening repertoire with proven strategies for all levels.",
+      "description": "Build a strong opening repertoire.",
     },
   ];
 
@@ -703,10 +676,11 @@ class _CourseFilterAndListSectionState
       List<Map<String, dynamic>> tempCourses = List.from(_allCourses);
       if (_selectedTypeFilter == "Popular") {
         tempCourses = tempCourses.where((c) => c['isPopular'] == true).toList();
-      } else if (_selectedTypeFilter == "Paid")
+      } else if (_selectedTypeFilter == "Paid") {
         tempCourses = tempCourses.where((c) => c['price'] > 0).toList();
-      else if (_selectedTypeFilter == "Free")
+      } else if (_selectedTypeFilter == "Free") {
         tempCourses = tempCourses.where((c) => c['price'] == 0).toList();
+      }
 
       tempCourses =
           tempCourses
@@ -786,7 +760,6 @@ class _CourseFilterAndListSectionState
     Overlay.of(context).insert(_overlayEntry!);
   }
 
-  // Tombol untuk filter level (Beginner, Intermediate, Expert)
   Widget _buildLevelFilterButton(String title) {
     bool isActive = _selectedLevelFilter == title;
     return Expanded(
@@ -828,10 +801,8 @@ class _CourseFilterAndListSectionState
       padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
       child: Column(
         children: [
-          // Baris pertama untuk tombol filter
           Row(
             children: [
-              // Tombol Dropdown "All Course"
               InkWell(
                 key: _filterButtonKey,
                 onTap: _toggleDropdown,
@@ -854,7 +825,7 @@ class _CourseFilterAndListSectionState
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        _selectedTypeFilter, // <-- DIUBAH MENJADI VARIABEL STATE
+                        _selectedTypeFilter,
                         style: const TextStyle(
                           color: kPrimaryBlue,
                           fontWeight: FontWeight.w600,
@@ -868,7 +839,6 @@ class _CourseFilterAndListSectionState
             ],
           ),
           const SizedBox(height: 12),
-          // Baris kedua untuk filter level
           Row(
             children: [
               _buildLevelFilterButton("Beginner"),
@@ -877,8 +847,6 @@ class _CourseFilterAndListSectionState
             ],
           ),
           const SizedBox(height: 20),
-
-          // Daftar Course dalam GridView
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
@@ -886,7 +854,7 @@ class _CourseFilterAndListSectionState
               crossAxisCount: 2,
               crossAxisSpacing: 16,
               mainAxisSpacing: 16,
-              childAspectRatio: 0.7, // Disesuaikan agar kartu lebih tinggi
+              childAspectRatio: 0.7,
             ),
             itemCount: _filteredCourses.length,
             itemBuilder: (context, index) {
@@ -909,99 +877,38 @@ class CourseCard extends StatefulWidget {
 }
 
 class _CourseCardState extends State<CourseCard> {
-  YoutubePlayerController? _controller;
-  bool _isVideoInitialized = false;
-  bool _isVideoLoading = true;
+  String? _videoId;
 
   @override
   void initState() {
     super.initState();
-    _initializeVideo();
-  }
-
-  void _initializeVideo() {
-    setState(() {
-      _isVideoLoading = true;
-    });
     final String? youtubeUrl = widget.course['youtube_url'] as String?;
     if (youtubeUrl != null && youtubeUrl.isNotEmpty) {
-      final videoId = extractYoutubeId(youtubeUrl);
-      if (videoId != null) {
-        _controller = YoutubePlayerController.fromVideoId(
-          videoId: videoId,
-          params: const YoutubePlayerParams(
-            showControls: true,
-            showFullscreenButton: true,
-            mute: true,
-            showVideoAnnotations: false,
-          ),
-        );
-        _isVideoInitialized = true;
-      }
+      _videoId = extractYoutubeId(youtubeUrl);
     }
   }
 
-  @override
-  void dispose() {
-    _controller?.close();
-    super.dispose();
+  // Helper untuk mendapatkan URL Thumbnail YouTube
+  String _getYoutubeThumbnail(String videoId) {
+    // Menggunakan hqdefault untuk resolusi thumbnail yang lebih baik
+    return 'https://img.youtube.com/vi/$videoId/hqdefault.jpg';
   }
 
   @override
   Widget build(BuildContext context) {
     final price = widget.course['price'] as num? ?? 0;
-    final String? imageUrl = widget.course['imageUrl'] as String?;
-    final String? youtubeUrl = widget.course['youtube_url'] as String?;
+    final String? assetImage = widget.course['imageUrl'] as String?;
 
     return GestureDetector(
       onTap: () {
-        if (youtubeUrl != null && youtubeUrl.isNotEmpty) {
-          // Tampilkan video dalam dialog
+        if (_videoId != null) {
+          // Hanya memuat player saat dialog dibuka (mengatasi error 15)
           showDialog(
             context: context,
-            builder:
-                (context) => Dialog(
-                  backgroundColor: Colors.transparent,
-                  insetPadding: EdgeInsets.symmetric(
-                    horizontal: MediaQuery.of(context).size.width * 0.1,
-                    vertical: MediaQuery.of(context).size.height * 0.25,
-                  ),
-                  child: Stack(
-                    children: [
-                      AspectRatio(
-                        aspectRatio: 16 / 9,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(15),
-                          child:
-                              _controller != null
-                                  ? YoutubePlayer(
-                                    controller: _controller!,
-                                    aspectRatio: 16 / 9,
-                                  )
-                                  : Center(child: Text("Video tidak tersedia")),
-                        ),
-                      ),
-                      if (_isVideoLoading)
-                        Positioned.fill(
-                          child: Container(
-                            color: Colors.black26,
-                            child: Center(child: CircularProgressIndicator()),
-                          ),
-                        ),
-                      Positioned(
-                        top: 8,
-                        right: 8,
-                        child: IconButton(
-                          icon: Icon(Icons.close, color: Colors.white),
-                          onPressed: () => Navigator.of(context).pop(),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+            builder: (context) => YouTubeDialog(videoId: _videoId!),
           );
         } else {
-          print("Course tapped: ${widget.course['title']}");
+          print("Course tapped: ${widget.course['title']} (No Video)");
         }
       },
       child: Container(
@@ -1029,50 +936,38 @@ class _CourseCardState extends State<CourseCard> {
               ),
               child: Stack(
                 children: [
-                  if (_isVideoInitialized && _controller != null)
-                    SizedBox(
-                      height: 120,
-                      width: double.infinity,
-                      child: YoutubePlayer(
-                        controller: _controller!,
-                        aspectRatio: 16 / 9,
-                      ),
-                    )
-                  else
-                    Image.asset(
-                      imageUrl ?? 'assets/images/course1.png',
-                      height: 120,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        print("Error loading course image: $error");
-                        return Container(
-                          height: 120,
-                          color: kLightBlue.withOpacity(0.3),
-                          child: const Center(
-                            child: Icon(
-                              Icons.photo_size_select_actual_outlined,
-                              color: kDarkBlue,
-                              size: 30,
-                            ),
+                  // 1. Layer Background (Thumbnail)
+                  SizedBox(
+                    height: 120,
+                    width: double.infinity,
+                    child:
+                        _videoId != null
+                            ? Image.network(
+                              _getYoutubeThumbnail(_videoId!),
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                // Fallback ke asset image jika thumbnail gagal load
+                                return _buildAssetImage(assetImage);
+                              },
+                            )
+                            : _buildAssetImage(assetImage),
+                  ),
+
+                  // 2. Layer Icon Play (Jika ada video)
+                  if (_videoId != null)
+                    Positioned.fill(
+                      child: Center(
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.6),
+                            shape: BoxShape.circle,
                           ),
-                        );
-                      },
-                    ),
-                  if (youtubeUrl != null && youtubeUrl.isNotEmpty)
-                    Positioned(
-                      right: 8,
-                      bottom: 8,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.7),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: const Icon(
-                          Icons.play_circle_filled,
-                          color: Colors.white,
-                          size: 24,
+                          child: const Icon(
+                            Icons.play_arrow_rounded,
+                            color: Colors.white,
+                            size: 32,
+                          ),
                         ),
                       ),
                     ),
@@ -1130,6 +1025,31 @@ class _CourseCardState extends State<CourseCard> {
       ),
     );
   }
+
+  Widget _buildAssetImage(String? assetPath) {
+    if (assetPath != null && assetPath.isNotEmpty) {
+      return Image.asset(
+        assetPath,
+        height: 120,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            height: 120,
+            color: kLightBlue.withOpacity(0.3),
+            child: const Center(
+              child: Icon(
+                Icons.image_not_supported,
+                color: kDarkBlue,
+                size: 30,
+              ),
+            ),
+          );
+        },
+      );
+    }
+    return Container(height: 120, color: kLightBlue);
+  }
 }
 
 String? extractYoutubeId(String url) {
@@ -1140,4 +1060,88 @@ String? extractYoutubeId(String url) {
   );
   final match = regExp.firstMatch(url);
   return match?.group(1);
+}
+
+// Widget Dialog Terpisah untuk Menangani Siklus Hidup Video Player
+class YouTubeDialog extends StatefulWidget {
+  final String videoId;
+  const YouTubeDialog({super.key, required this.videoId});
+
+  @override
+  State<YouTubeDialog> createState() => _YouTubeDialogState();
+}
+
+class _YouTubeDialogState extends State<YouTubeDialog> {
+  late YoutubePlayerController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    // Inisialisasi controller HANYA ketika dialog dibuka
+    _controller = YoutubePlayerController.fromVideoId(
+      videoId: widget.videoId,
+      params: const YoutubePlayerParams(
+        showControls: true,
+        showFullscreenButton: true,
+        mute: false,
+        playsInline: true,
+        origin: 'https://www.youtube-nocookie.com',
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    // Sangat Penting: Hapus controller saat dialog ditutup
+    _controller.close();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: MediaQuery.of(context).size.width * 0.05,
+      ),
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.black,
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(15),
+              child: AspectRatio(
+                aspectRatio: 16 / 9,
+                child: YoutubePlayer(
+                  controller: _controller,
+                  aspectRatio: 16 / 9,
+                ),
+              ),
+            ),
+          ),
+          // Tombol Close di luar frame
+          Positioned(
+            top: -40,
+            right: 0,
+            child: GestureDetector(
+              onTap: () => Navigator.of(context).pop(),
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.close, color: Colors.black, size: 20),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

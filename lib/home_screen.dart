@@ -265,6 +265,18 @@ class _HomeContentState extends State<HomeContent>
           "description":
               "Master the art of endgame play with advanced techniques and strategies.",
         },
+        {
+          "id": "c6",
+          "imageUrl": "assets/images/course4.png",
+          "title": "Chess Tutorial by Sentient Society",
+          "price": 0,
+          "rating": 4.9,
+          "reviewCount": 90,
+          "category": "free",
+          "youtube_url": "https://www.youtube.com/watch?v=dUZIJ-Z61eo",
+          "description":
+              "Master the art of endgame play with advanced techniques and strategies.",
+        },
       ];
     } catch (e) {
       print('Error fetch course: $e');
@@ -1104,123 +1116,32 @@ class CourseCard extends StatefulWidget {
 }
 
 class _CourseCardState extends State<CourseCard> {
-  YoutubePlayerController? _controller;
+  String? _videoId;
 
   @override
   void initState() {
     super.initState();
     print("CourseCard initState for ${widget.course['title']}");
-    _initializeVideo();
-  }
-
-  void _initializeVideo() {
     final String? youtubeUrl = widget.course['youtube_url'] as String?;
     if (youtubeUrl != null && youtubeUrl.isNotEmpty) {
-      final videoId = extractYoutubeId(youtubeUrl);
-      if (videoId != null) {
-        _controller = YoutubePlayerController.fromVideoId(
-          videoId: videoId,
-          params: const YoutubePlayerParams(
-            showControls: false,
-            showFullscreenButton: false,
-            mute: true,
-            showVideoAnnotations: false,
-          ),
-          autoPlay: false,
-        );
-      } else {
-        print("Could not extract YouTube ID from URL: $youtubeUrl");
-      }
-    } else {
-      print("No YouTube URL provided for course: ${widget.course['title']}");
+      _videoId = extractYoutubeId(youtubeUrl);
     }
-  }
-
-  @override
-  void didUpdateWidget(covariant CourseCard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.course['youtube_url'] != widget.course['youtube_url']) {
-      print(
-        "Course URL changed, re-initializing video for ${widget.course['title']}",
-      );
-      _controller?.close();
-      _controller = null;
-      _initializeVideo();
-    }
-  }
-
-  @override
-  void dispose() {
-    print("CourseCard dispose for ${widget.course['title']}");
-    _controller?.close();
-    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final price = widget.course['price'] as num? ?? 0;
     final String? imageUrl = widget.course['imageUrl'] as String?;
-    final String? youtubeUrl = widget.course['youtube_url'] as String?;
-    final String? videoId =
-        youtubeUrl != null ? extractYoutubeId(youtubeUrl) : null;
     final String? thumbnailUrl =
-        videoId != null ? 'https://img.youtube.com/vi/$videoId/0.jpg' : null;
+        _videoId != null ? 'https://img.youtube.com/vi/$_videoId/0.jpg' : null;
 
     return GestureDetector(
       onTap: () {
-        if (videoId != null) {
+        if (_videoId != null) {
+          // Hanya memuat player saat dialog dibuka (mengatasi error 15)
           showDialog(
             context: context,
-            builder:
-                (context) => Dialog(
-                  backgroundColor: Colors.transparent,
-                  insetPadding: EdgeInsets.symmetric(
-                    horizontal: MediaQuery.of(context).size.width * 0.05,
-                    vertical: MediaQuery.of(context).size.height * 0.15,
-                  ),
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      AspectRatio(
-                        aspectRatio: 16 / 9,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(15),
-                          child: YoutubePlayer(
-                            controller: YoutubePlayerController.fromVideoId(
-                              videoId: videoId,
-                              params: const YoutubePlayerParams(
-                                showControls: true,
-                                showFullscreenButton: true,
-                                mute: false,
-                                showVideoAnnotations: false,
-                              ),
-                              autoPlay: true,
-                            ),
-                            aspectRatio: 16 / 9,
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        top: -15,
-                        right: -15,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.black54,
-                            shape: BoxShape.circle,
-                          ),
-                          child: IconButton(
-                            icon: const Icon(
-                              Icons.close,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                            onPressed: () => Navigator.of(context).pop(),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+            builder: (context) => YouTubeVideoDialog(videoId: _videoId!),
           );
         } else {
           print("Course tapped (No Video): " + (widget.course['title'] ?? ''));
@@ -1286,7 +1207,7 @@ class _CourseCardState extends State<CourseCard> {
                       },
                       loadingBuilder: (c, child, p) {
                         if (p == null) return child;
-                        return Container(
+                        return SizedBox(
                           height: 120,
                           child: Center(
                             child: CircularProgressIndicator(
@@ -1332,7 +1253,7 @@ class _CourseCardState extends State<CourseCard> {
                       ),
                     ),
 
-                  if (videoId != null)
+                  if (_videoId != null)
                     Positioned.fill(
                       child: Center(
                         child: Container(
@@ -1407,7 +1328,7 @@ class _CourseCardState extends State<CourseCard> {
 }
 
 String? extractYoutubeId(String url) {
-  if (url == null || url.isEmpty) {
+  if (url.isEmpty) {
     return null;
   }
   final RegExp regExp = RegExp(
@@ -1417,6 +1338,92 @@ String? extractYoutubeId(String url) {
   );
   final match = regExp.firstMatch(url);
   return match?.group(1);
+}
+
+// Widget Dialog Terpisah untuk Menangani Siklus Hidup Video Player
+class YouTubeVideoDialog extends StatefulWidget {
+  final String videoId;
+  const YouTubeVideoDialog({super.key, required this.videoId});
+
+  @override
+  State<YouTubeVideoDialog> createState() => _YouTubeVideoDialogState();
+}
+
+class _YouTubeVideoDialogState extends State<YouTubeVideoDialog> {
+  late YoutubePlayerController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    // Inisialisasi controller HANYA ketika dialog dibuka
+    _controller = YoutubePlayerController.fromVideoId(
+      videoId: widget.videoId,
+      params: const YoutubePlayerParams(
+        showControls: true,
+        showFullscreenButton: true,
+        mute: false,
+        playsInline: true,
+        showVideoAnnotations: false,
+        origin: 'https://www.youtube-nocookie.com',
+      ),
+      autoPlay: true,
+    );
+  }
+
+  @override
+  void dispose() {
+    // Sangat Penting: Hapus controller saat dialog ditutup
+    _controller.close();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: MediaQuery.of(context).size.width * 0.05,
+        vertical: MediaQuery.of(context).size.height * 0.15,
+      ),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.black,
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(15),
+              child: AspectRatio(
+                aspectRatio: 16 / 9,
+                child: YoutubePlayer(
+                  controller: _controller,
+                  aspectRatio: 16 / 9,
+                ),
+              ),
+            ),
+          ),
+          // Tombol Close di luar frame
+          Positioned(
+            top: -15,
+            right: -15,
+            child: GestureDetector(
+              onTap: () => Navigator.of(context).pop(),
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.close, color: Colors.white, size: 20),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class ShopSection extends StatefulWidget {
