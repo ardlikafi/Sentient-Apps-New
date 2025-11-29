@@ -10,7 +10,15 @@ class Course extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id', 'title', 'category', 'price', 'rating', 'reviewCount', 'description', 'content', 'youtube_url',
+    'user_id',
+    'title',
+    'category',
+    'price',
+    'rating',
+    'reviewCount',
+    'description',
+    'content',
+    'youtube_url',
     ];
 
     public function user()

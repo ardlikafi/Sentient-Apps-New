@@ -12,7 +12,7 @@ class ArticleDetailScreen extends StatelessWidget {
   final Map<String, dynamic> article;
 
   // HAPUS kata kunci const di sini
-  ArticleDetailScreen({super.key, required this.article});
+  const ArticleDetailScreen({super.key, required this.article});
 
   @override
   Widget build(BuildContext context) {
@@ -114,7 +114,7 @@ class ArticleDetailScreen extends StatelessWidget {
                           },
                           loadingBuilder: (context, child, loadingProgress) {
                             if (loadingProgress == null) return child;
-                            return Container(
+                            return SizedBox(
                               // Loading indicator
                               height: 200, // Samakan tinggi dengan placeholder
                               child: Center(

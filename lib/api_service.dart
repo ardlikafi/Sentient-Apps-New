@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ApiService {
   // Konfigurasi server
   // static const String serverIP = '10.0.2.2'; // IP untuk Android Emulator
-  static const String serverIP = '192.168.1.5'; // IP untuk device fisik
+  static const String serverIP = '192.168.1.6'; // Ganti jadi ini
   static const int serverPort = 8000;
   static const String baseUrl = 'http://$serverIP:$serverPort/api';
 
