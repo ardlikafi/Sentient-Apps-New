@@ -26,25 +26,22 @@ class CTAScreen extends StatelessWidget {
           child: Column(
             children: [
               const SizedBox(height: 32),
-              // Logo Sentient di tengah atas
               Center(
                 child: Image.asset(
-                  'assets/images/img_logo.png', // pastikan path asset benar
+                  'assets/images/img_logo.png',
                   height: 56,
                 ),
               ),
               const SizedBox(height: 32),
-              // Splash illustration di tengah
               Expanded(
                 child: Center(
                   child: Image.asset(
                     'assets/images/img_splash_screen.png',
-                    height: 370, // atur sesuai kebutuhan
+                    height: 370,
                     fit: BoxFit.contain,
                   ),
                 ),
               ),
-              // Text
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0),
                 child: Text(
@@ -59,7 +56,6 @@ class CTAScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 32),
-              // Get Started Button
               Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 24.0,
