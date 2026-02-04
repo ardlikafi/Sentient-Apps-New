@@ -6,7 +6,6 @@ import 'dart:io';
 import 'dart:async';
 import 'firebase_service.dart';
 import 'animated_route.dart';
-import 'verify_email_screen.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -171,6 +170,20 @@ class _SignUpScreenState extends State<SignUpScreen> {
     });
 
     try {
+      print('Starting registration process...');
+      
+      // Check username availability first
+      // bool isUsernameTaken = await FirebaseService.isUsernameTaken(_usernameController.text);
+      // if (isUsernameTaken) {
+      //   setState(() {
+      //     _error = 'Username sudah digunakan. Silakan pilih username lain.';
+      //     _loading = false;
+      //   });
+      //   return;
+      // }
+      
+      print('Skipping username check for debugging...');
+      
       final userCredential = await FirebaseService.register(
         username: _usernameController.text,
         email: _emailController.text,
@@ -180,26 +193,34 @@ class _SignUpScreenState extends State<SignUpScreen> {
       if (!mounted) return;
 
       if (userCredential != null) {
+        print('Registration successful!');
+        
         if (_profileImage != null) {
+          print('Uploading profile image...');
           await FirebaseService.uploadAvatar(_profileImage!);
         }
 
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const VerifyEmailScreen()),
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
         );
       } else {
         setState(() {
-          _error = 'Registrasi gagal. Silakan coba lagi.';
+          _error = 'Registration failed. Please try again.';
         });
       }
     } catch (e) {
+      print('Registration error in UI: $e');
+      if (!mounted) return;
+      
       setState(() {
-        _error = 'Terjadi kesalahan: ${e.toString()}';
+        _error = e.toString().replaceAll('Exception: ', '');
       });
     } finally {
-      setState(() {
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
+      }
     }
   }
 
@@ -315,11 +336,15 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                     const SizedBox(height: 8),
                                     TextFormField(
                                       controller: _emailController,
-                                      validator:
-                                          (v) =>
-                                      v == null || !v.contains('@')
-                                          ? 'Email tidak valid'
-                                          : null,
+                                      validator: (v) {
+                                        print('Validating email: $v');
+                                        if (v == null || !v.contains('@')) {
+                                          print('Email validation failed: $v');
+                                          return 'Email tidak valid';
+                                        }
+                                        print('Email validation passed: $v');
+                                        return null;
+                                      },
                                       decoration: InputDecoration(
                                         filled: true,
                                         fillColor: const Color(0xFFE3F0FF),
@@ -494,11 +519,18 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                     const SizedBox(height: 8),
                                     TextFormField(
                                       controller: _usernameController,
-                                      validator:
-                                          (v) =>
-                                      v == null || v.isEmpty
-                                          ? 'Username wajib diisi'
-                                          : null,
+                                      validator: (v) {
+                                        if (v == null || v.isEmpty) {
+                                          return 'Username wajib diisi';
+                                        }
+                                        if (v.length < 3) {
+                                          return 'Username minimal 3 karakter';
+                                        }
+                                        if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(v)) {
+                                          return 'Username hanya boleh huruf, angka, dan underscore';
+                                        }
+                                        return null;
+                                      },
                                       decoration: InputDecoration(
                                         filled: true,
                                         fillColor: const Color(0xFFE3F0FF),

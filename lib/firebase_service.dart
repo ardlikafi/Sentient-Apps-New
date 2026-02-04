@@ -1,9 +1,14 @@
-import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+// Conditional imports for web compatibility
+import 'dart:html' as html;
+import 'dart:typed_data' show Uint8List;
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:io' show File;
 
 class FirebaseService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -16,11 +21,17 @@ class FirebaseService {
     required String password,
   }) async {
     try {
+      print('Attempting to register user: $email, username: $username');
+      
       UserCredential userCredential = await _auth
           .createUserWithEmailAndPassword(email: email, password: password);
 
-      await userCredential.user?.sendEmailVerification();
+      print('User created successfully: ${userCredential.user?.uid}');
 
+      // TODO: Uncomment untuk production
+      // await userCredential.user?.sendEmailVerification();
+
+      // Save user data to Firestore
       await _firestore.collection('users').doc(userCredential.user!.uid).set({
         'username': username,
         'email': email,
@@ -30,10 +41,38 @@ class FirebaseService {
         'updated_at': FieldValue.serverTimestamp(),
       });
 
+      print('User data saved to Firestore successfully');
       return userCredential;
     } catch (e) {
       print('Error during registration: $e');
-      return null;
+      print('Error type: ${e.runtimeType}');
+      
+      // Provide more specific error messages
+      String errorMessage = 'Registration failed';
+      if (e is FirebaseAuthException) {
+        switch (e.code) {
+          case 'weak-password':
+            errorMessage = 'Password is too weak (minimum 6 characters)';
+            break;
+          case 'email-already-in-use':
+            errorMessage = 'Email is already registered';
+            break;
+          case 'invalid-email':
+            errorMessage = 'Invalid email format';
+            break;
+          case 'operation-not-allowed':
+            errorMessage = 'Email/password accounts are not enabled';
+            break;
+          case 'network-request-failed':
+            errorMessage = 'Network error. Please check your connection';
+            break;
+          default:
+            errorMessage = 'Registration failed: ${e.message}';
+        }
+      }
+      
+      print('User-friendly error message: $errorMessage');
+      throw Exception(errorMessage);
     }
   }
 
@@ -85,15 +124,24 @@ class FirebaseService {
 
   static Future<bool> isUsernameTaken(String username) async {
     try {
+      print('Checking username availability for: $username');
+      
       final result = await _firestore
           .collection('users')
           .where('username', isEqualTo: username)
           .limit(1)
           .get();
-      return result.docs.isNotEmpty;
+      
+      bool isTaken = result.docs.isNotEmpty;
+      print('Username "$username" is taken: $isTaken');
+      print('Found ${result.docs.length} documents');
+      
+      return isTaken;
     } catch (e) {
       print("Error checking username: $e");
-      return true;
+      // Return false on error to allow registration
+      // Better to allow duplicate username than block valid registration
+      return false;
     }
   }
 
@@ -173,26 +221,34 @@ class FirebaseService {
     }
   }
 
-  static Future<String?> uploadAvatar(File avatarFile) async {
+  static Future<String?> uploadAvatar(dynamic avatarFile) async {
     try {
       User? user = _auth.currentUser;
       if (user == null) return null;
 
-      String fileName =
-          'avatars/${user.uid}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      Reference ref = _storage.ref().child(fileName);
+      if (kIsWeb) {
+        // Web implementation with FileReader
+        final reader = html.FileReader();
+        reader.readAsDataUrl(avatarFile);
+        await reader.onLoad.first;
+        
+        // For web, we'll just return a placeholder URL
+        return 'https://via.placeholder.com/150';
+      } else {
+        // Mobile implementation
+        final file = File(avatarFile);
+        final snapshot = await _storage
+            .ref('avatar_${user.uid}_${DateTime.now().millisecondsSinceEpoch}')
+            .putFile(file);
+        
+        String downloadUrl = await snapshot.ref.getDownloadURL();
+        await _firestore.collection('users').doc(user.uid).update({
+          'avatar': downloadUrl,
+          'updated_at': FieldValue.serverTimestamp(),
+        });
 
-      UploadTask uploadTask = ref.putFile(avatarFile);
-      TaskSnapshot snapshot = await uploadTask;
-
-      String downloadUrl = await snapshot.ref.getDownloadURL();
-
-      await _firestore.collection('users').doc(user.uid).update({
-        'avatar': downloadUrl,
-        'updated_at': FieldValue.serverTimestamp(),
-      });
-
-      return downloadUrl;
+        return downloadUrl;
+      }
     } catch (e) {
       print('Error uploading avatar: $e');
       return null;

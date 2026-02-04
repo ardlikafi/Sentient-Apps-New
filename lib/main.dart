@@ -10,10 +10,20 @@ import 'profile_screen.dart';
 import 'welcome_screen.dart';
 import 'signup_choice_screen.dart';
 import 'home_screen.dart';
+import 'main_navigation.dart';
+import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  
+  // Debug: Print Firebase options
+  final options = DefaultFirebaseOptions.currentPlatform;
+  print('Firebase API Key: ${options.apiKey}');
+  print('Firebase App ID: ${options.appId}');
+  
+  await Firebase.initializeApp(
+    options: options,
+  );
   runApp(
     ChangeNotifierProvider(
       create: (context) => LikedProductsProvider(),
@@ -42,7 +52,7 @@ class MyApp extends StatelessWidget {
         '/signup': (context) => const SignUpScreen(),
         '/login': (context) => const LoginScreen(),
         '/profile': (context) => const ProfileScreen(),
-        '/home': (context) => const HomeScreen(),
+        '/home': (context) => const MainNavigation(),
       },
     );
   }

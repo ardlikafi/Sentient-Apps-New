@@ -6,7 +6,7 @@ import 'package:sentient/course_screen.dart';
 import 'package:sentient/shop_screen.dart';
 import 'package:sentient/profile_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'api_service.dart';
+import 'firebase_service.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 import 'dart:io';
 import 'package:sentient/product_detail_screen.dart';
@@ -22,93 +22,12 @@ const Color kVeryLightBlue = Color(0xFFD6E5F2);
 const Color kGradientStartBlue = Color(0xFF000A26);
 const Color kGradientEndBlue = Color(0xFF0A3D91);
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends State<HomeScreen> {
-  int _selectedIndex = 0;
-
-  static const List<Widget> pageOptions = <Widget>[
-    HomeContent(),
-    CourseScreen(),
-    ShopScreen(),
-    ProfileScreen(),
-  ];
-
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: IndexedStack(index: _selectedIndex, children: pageOptions),
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.symmetric(vertical: 4.0),
-        decoration: BoxDecoration(
-          color: kDarkBlue,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(20.0),
-            topRight: Radius.circular(20.0),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.15),
-              spreadRadius: 0,
-              blurRadius: 8,
-              offset: const Offset(0, -2),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(20.0),
-            topRight: Radius.circular(20.0),
-          ),
-          child: BottomNavigationBar(
-            items: const <BottomNavigationBarItem>[
-              BottomNavigationBarItem(
-                icon: Icon(Icons.home_outlined),
-                activeIcon: Icon(Icons.home),
-                label: 'Home',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.menu_book_outlined),
-                activeIcon: Icon(Icons.menu_book),
-                label: 'Course',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.store_outlined),
-                activeIcon: Icon(Icons.store),
-                label: 'Shop',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.person_outline),
-                activeIcon: Icon(Icons.person),
-                label: 'Profile',
-              ),
-            ],
-            currentIndex: _selectedIndex,
-            selectedItemColor: kVeryLightBlue,
-            unselectedItemColor: kLightBlue.withOpacity(0.7),
-            backgroundColor: Colors.transparent,
-            type: BottomNavigationBarType.fixed,
-            showUnselectedLabels: true,
-            onTap: _onItemTapped,
-            elevation: 0,
-            iconSize: 26,
-            selectedFontSize: 13,
-            unselectedFontSize: 12,
-          ),
-        ),
-      ),
-    );
+    return const HomeContent();
   }
 }
 
@@ -173,30 +92,22 @@ class _HomeContentState extends State<HomeContent>
   }
 
   Future<void> _fetchHomeHeaderData() async {
-    print('Mulai fetch profile...');
+    print('Mulai fetch profile dari Firebase...');
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('token');
-      if (token == null) {
-        print('Token tidak ditemukan.');
-        if (mounted) {
-          _homeHeaderData = null;
-          print('Profile data will be null due to missing token.');
-        }
-        return;
-      }
-      final result = await ApiService.getProfile(token);
+      final userData = await FirebaseService.getCurrentUser();
       if (mounted) {
-        if (result != null) {
-          _homeHeaderData = result;
-          print('Profile berhasil diambil.');
+        if (userData != null) {
+          _homeHeaderData = userData;
+          print('Profile berhasil diambil dari Firebase: ${userData['username']}');
         } else {
-          print('Gagal mengambil data profile.');
+          print('Gagal mengambil data profile dari Firebase.');
         }
       }
     } catch (e) {
-      print('Error fetch profile: $e');
-      rethrow;
+      print('Error fetch profile dari Firebase: $e');
+      if (mounted) {
+        _homeHeaderData = null;
+      }
     }
   }
 
@@ -544,31 +455,36 @@ class _HomeHeaderState extends State<HomeHeader> {
   }
 
   void _syncUser() {
-    final user =
-        widget.profileData != null ? widget.profileData!['user'] : null;
-    final profile =
-        widget.profileData != null ? widget.profileData!['profile'] : null;
     if (mounted) {
       setState(() {
-        _username = user?['username'] ?? 'User';
-        _email = user?['email'];
+        // Get username from Firebase data
+        String? fullUsername = widget.profileData?['username'] ?? 'User';
+        
+        // Extract first name only
+        List<String> nameParts = fullUsername?.split(' ') ?? ['User'];
+        _username = nameParts.first.isNotEmpty ? nameParts.first : 'User';
+        
+        // Remove email display from home screen
+        // _email = widget.profileData?['email'];
 
-        if (_avatarPath == null) {
-          final backendAvatar = profile?['avatar'];
-          if (backendAvatar != null && backendAvatar.toString().isNotEmpty) {
-            final avatarUrl = backendAvatar.toString();
-            if (avatarUrl.startsWith('http') || avatarUrl.startsWith('https')) {
-              _avatarImage = NetworkImage(avatarUrl);
-            } else {
-              print(
-                "Warning: Backend avatar path looks local but no local path found: $avatarUrl",
-              );
-              _avatarImage = null;
-            }
+        // Get avatar from Firebase data
+        final firebaseAvatar = widget.profileData?['avatar'];
+        if (_avatarPath == null && firebaseAvatar != null && firebaseAvatar.toString().isNotEmpty) {
+          final avatarUrl = firebaseAvatar.toString();
+          if (avatarUrl.startsWith('http') || avatarUrl.startsWith('https')) {
+            _avatarImage = NetworkImage(avatarUrl);
+            print('Loading avatar from URL: $avatarUrl');
           } else {
+            print("Warning: Firebase avatar path is not a valid URL: $avatarUrl");
             _avatarImage = null;
           }
+        } else {
+          _avatarImage = null;
         }
+        
+        print('HomeHeader: Username set to: $_username');
+        print('HomeHeader: Email: $_email');
+        print('HomeHeader: Avatar: ${_avatarImage != null ? "Loaded" : "Not loaded"}');
       });
     }
   }

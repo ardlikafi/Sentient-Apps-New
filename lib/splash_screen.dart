@@ -39,10 +39,9 @@ class _SplashScreenState extends State<SplashScreen>
   Future<void> _checkAuthAndNavigate() async {
     await Future.delayed(const Duration(milliseconds: 3000));
 
-    final user = FirebaseAuth.instance.currentUser;
-
     if (!mounted) return;
 
+    final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       Navigator.pushReplacementNamed(context, '/home');
     } else {

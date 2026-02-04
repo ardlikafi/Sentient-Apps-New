@@ -5,7 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_service.dart';
 import 'home_screen.dart';
-import 'verify_email_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -51,16 +50,17 @@ class _LoginScreenState extends State<LoginScreen> {
         final user = userCredential.user;
         await user?.reload(); // Selalu reload untuk mendapatkan status terbaru
 
-        if (user != null && !user.emailVerified) {
-          if (mounted) {
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (_) => const VerifyEmailScreen()),
-            );
-          }
-          return; // Hentikan proses jika email belum diverifikasi
-        }
+        // TODO: Uncomment untuk production jika ingin verifikasi email
+        // if (user != null && !user.emailVerified) {
+        //   if (mounted) {
+        //     Navigator.of(context).pushReplacement(
+        //       MaterialPageRoute(builder: (_) => const VerifyEmailScreen()),
+        //     );
+        //   }
+        //   return; // Hentikan proses jika email belum diverifikasi
+        // }
 
-        // Jika email sudah terverifikasi, lanjutkan
+        // Lanjutkan langsung ke home screen
         await Provider.of<LikedProductsProvider>(context, listen: false).syncLikesWithFirebase();
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('user_id', user!.uid);

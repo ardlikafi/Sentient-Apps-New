@@ -1,13 +1,88 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'firebase_service.dart';
+import 'demo_payment_page.dart';
 
 const Color kDarkBlue = Color(0xFF000A26);
 const Color kPrimaryBlue = Color(0xFF0F52BA);
 const Color kLightBlue = Color(0xFFA6C6D8);
 const Color kVeryLightBlue = Color(0xFFD6E5F2);
 
-class SubscriptionScreen extends StatelessWidget {
+class SubscriptionScreen extends StatefulWidget {
   const SubscriptionScreen({super.key});
+
+  @override
+  State<SubscriptionScreen> createState() => _SubscriptionScreenState();
+}
+
+class _SubscriptionScreenState extends State<SubscriptionScreen> {
+  bool _isProcessing = false;
+
+  Future<void> _handleSubscriptionPurchase(String planName, String duration, int price) async {
+    if (_isProcessing) return;
+
+    setState(() => _isProcessing = true);
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        _showErrorSnackBar('Please login first');
+        return;
+      }
+
+      // Get user data
+      final userData = await FirebaseService.getCurrentUser();
+      if (userData == null) {
+        _showErrorSnackBar('Failed to get user data');
+        return;
+      }
+
+      // Navigate to demo payment page
+      final result = await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => DemoPaymentPage(
+            planName: planName,
+            price: price,
+            userEmail: userData['email'] ?? '',
+            userName: userData['username'] ?? '',
+          ),
+        ),
+      );
+
+      // If payment was successful
+      if (result == true) {
+        _showSuccessSnackBar('Payment successful! Subscription activated.');
+      }
+
+    } catch (e) {
+      _showErrorSnackBar('Payment error: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isProcessing = false);
+      }
+    }
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  void _showSuccessSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -75,7 +150,7 @@ class SubscriptionScreen extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'Access all courses, improve faster, and play smarter\nupgrade your plan today.',
+                'Access all courses, improve faster and play smarter\nupgrade your plan today.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 14,
@@ -83,23 +158,74 @@ class SubscriptionScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 24),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: kLightBlue.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  children: [
+                    const Text(
+                      'Available Payment Methods',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: kDarkBlue,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'All payments are processed securely via Flip',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: kDarkBlue,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      alignment: WrapAlignment.center,
+                      children: [
+                        _PaymentMethodIcon(icon: Icons.account_balance_wallet, name: 'GoPay'),
+                        _PaymentMethodIcon(icon: Icons.shopping_bag, name: 'ShopeePay'),
+                        _PaymentMethodIcon(icon: Icons.phone_android, name: 'DANA'),
+                        _PaymentMethodIcon(icon: Icons.phone_iphone, name: 'OVO'),
+                        _PaymentMethodIcon(icon: Icons.qr_code_scanner, name: 'QRIS'),
+                        _PaymentMethodIcon(icon: Icons.account_balance, name: 'Virtual Account'),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
               SubscriptionTierCard(
                 iconPath: 'assets/images/ic_pawn.png',
                 tierName: 'Pawn Tier',
                 duration: '1 Month',
+                price: 99000,
                 benefits: benefits,
+                isProcessing: _isProcessing,
+                onPurchase: () => _handleSubscriptionPurchase('Pawn Tier', '1 Month', 99000),
               ),
               SubscriptionTierCard(
                 iconPath: 'assets/images/ic_knight.png',
                 tierName: 'Knight Tier',
                 duration: '3 Month',
+                price: 269000,
                 benefits: benefits,
+                isProcessing: _isProcessing,
+                onPurchase: () => _handleSubscriptionPurchase('Knight Tier', '3 Month', 269000),
               ),
               SubscriptionTierCard(
                 iconPath: 'assets/images/ic_queen.png',
                 tierName: 'Queen Tier',
                 duration: '6 Month',
+                price: 499000,
                 benefits: benefits,
+                isProcessing: _isProcessing,
+                onPurchase: () => _handleSubscriptionPurchase('Queen Tier', '6 Month', 499000),
               ),
             ],
           ),
@@ -113,14 +239,20 @@ class SubscriptionTierCard extends StatelessWidget {
   final String iconPath;
   final String tierName;
   final String duration;
+  final int price;
   final List<String> benefits;
+  final VoidCallback onPurchase;
+  final bool isProcessing;
 
   const SubscriptionTierCard({
     super.key,
     required this.iconPath,
     required this.tierName,
     required this.duration,
+    required this.price,
     required this.benefits,
+    required this.onPurchase,
+    this.isProcessing = false,
   });
 
   @override
@@ -158,21 +290,46 @@ class SubscriptionTierCard extends StatelessWidget {
                       color: Colors.white.withOpacity(0.8),
                     ),
                   ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Rp ${price.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
                 ],
               ),
               const Spacer(),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: kLightBlue.withOpacity(0.8),
+                  backgroundColor: Colors.white,
                   foregroundColor: kPrimaryBlue,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(25),
                   ),
+                  elevation: 3,
+                  shadowColor: Colors.black26,
                 ),
-                onPressed: () {
-                  // TODO: Tambahkan logika pembelian
-                },
-                child: const Text('Buy Now', style: TextStyle(fontWeight: FontWeight.bold)),
+                onPressed: isProcessing ? null : onPurchase,
+                child: isProcessing 
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(kPrimaryBlue),
+                      ),
+                    )
+                  : const Text(
+                      'Buy Now', 
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
               ),
             ],
           ),
@@ -220,6 +377,52 @@ class _BenefitItem extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _PaymentMethodIcon extends StatelessWidget {
+  final IconData icon;
+  final String name;
+
+  const _PaymentMethodIcon({
+    required this.icon,
+    required this.name,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: kPrimaryBlue.withOpacity(0.1),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Icon(
+            icon,
+            color: kPrimaryBlue,
+            size: 24,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          name,
+          style: TextStyle(
+            fontSize: 12,
+            color: kDarkBlue.withOpacity(0.8),
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
     );
   }
 }
