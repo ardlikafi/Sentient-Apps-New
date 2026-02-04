@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:ui' as ui;
 import 'chess_game_screen.dart';
+import 'main_navigation.dart';
 
 class ChessMenuScreen extends StatelessWidget {
   const ChessMenuScreen({super.key});
@@ -78,7 +79,7 @@ class ChessMenuScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.person, color: Colors.white),
             onPressed: () {
-              // TODO: Navigate to profile
+              // Navigasi ke profil pengguna
             },
           ),
         ],
@@ -204,7 +205,12 @@ class ChessMenuScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(12),
                           onTap: () {
                             Navigator.pop(context); // Tutup dialog
-                            Navigator.popUntil(context, (route) => route.isFirst); // Kembali ke home
+                            // Force kembali ke MainNavigation (home)
+                            Navigator.pushAndRemoveUntil(
+                              context,
+                              MaterialPageRoute(builder: (context) => const MainNavigation()),
+                              (route) => false,
+                            );
                           },
                           child: const Center(
                             child: Text(

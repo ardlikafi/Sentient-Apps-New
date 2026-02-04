@@ -1765,6 +1765,7 @@ class _ArticleSectionState extends State<ArticleSection> {
             child: TextButton(
               onPressed: () {
                 print("See all articles pressed");
+                // Navigasi ke halaman daftar artikel
                 // TODO: Implement navigation to a dedicated article list/screen
               },
               child: Text(

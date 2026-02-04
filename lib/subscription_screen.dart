@@ -134,7 +134,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           child: Column(
             children: [
               Image.asset(
-                'assets/images/ic_gem.png',
+                'assets/images/img_logo.png',
                 height: 80,
                 errorBuilder: (c, e, s) =>
                 const Icon(Icons.workspace_premium, color: kPrimaryBlue, size: 80),

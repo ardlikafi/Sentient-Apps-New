@@ -589,7 +589,7 @@ class _ChessGameScreenState extends State<ChessGameScreen> with TickerProviderSt
                           borderRadius: BorderRadius.circular(12),
                           onTap: () {
                             Navigator.pop(context); // Tutup dialog
-                            Navigator.popUntil(context, (route) => route.isFirst); // Kembali ke home
+                            Navigator.pop(context); // Kembali ke chess menu
                           },
                           child: const Center(
                             child: Text(
@@ -875,7 +875,7 @@ class _ChessGameScreenState extends State<ChessGameScreen> with TickerProviderSt
             icon: Icons.undo,
             label: 'Undo',
             onPressed: () {
-              // TODO: Implement undo functionality
+              // Fungsi undo akan diimplementasikan
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Undo coming soon!')),
               );
@@ -885,7 +885,7 @@ class _ChessGameScreenState extends State<ChessGameScreen> with TickerProviderSt
             icon: Icons.lightbulb,
             label: 'Hint',
             onPressed: () {
-              // TODO: Implement hint functionality
+              // Sistem hint akan diimplementasikan
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Hint system coming soon!')),
               );

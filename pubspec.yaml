@@ -116,8 +116,22 @@ flutter:
     - assets/images/course1.png
     - assets/images/course2.png
     - assets/images/course3.png
+    - assets/images/course4.png
     - assets/images/hikaru.png
     - assets/images/gotham.png
+    - assets/images/magnus.png
+    - assets/images/article1.png
+    - assets/images/article2.png
+    - assets/images/article3.png
+    - assets/images/article4.png
+    - assets/images/article5.png
+    - assets/images/article6.png
+    - assets/images/product1.png
+    - assets/images/product2.png
+    - assets/images/product3.png
+    - assets/images/product4.png
+    - assets/images/product5.png
+    - assets/images/product6.png
     - assets/icons/ic_back.png
     - assets/icons/ic_language.png
     - assets/icons/ic_eye.png
@@ -129,19 +143,12 @@ flutter:
     - assets/icons/ic_email.png
     - assets/icons/ic_password.png
     - assets/icons/ic_add_photo.png
-    - assets/images/product1.png
-    - assets/images/product2.png
-    - assets/images/product3.png
-    - assets/images/product4.png
-    - assets/images/product5.png
-    - assets/images/product6.png
-    - assets/images/article1.png
-    - assets/images/article2.png
-    - assets/images/article3.png
-    - assets/images/article4.png
-    - assets/images/article5.png
-    - assets/images/article6.png
-    - assets/images/ic_gem.png
+    - assets/icons/ic_finished.png
+    - assets/icons/ic_progress.png
+    - assets/icons/ic_save.png
+    - assets/screenshots/cta.png
+    - assets/screenshots/splash.png
+    - assets/screenshots/welcome.png
   fonts:
     - family: Poppins
       fonts:

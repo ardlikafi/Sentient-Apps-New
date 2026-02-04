@@ -28,7 +28,7 @@ class FirebaseService {
 
       print('User created successfully: ${userCredential.user?.uid}');
 
-      // TODO: Uncomment untuk production
+      // Verifikasi email akan dikirim untuk production
       // await userCredential.user?.sendEmailVerification();
 
       // Save user data to Firestore

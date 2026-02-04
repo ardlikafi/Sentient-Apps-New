@@ -232,7 +232,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
             ),
-            Image.asset('assets/images/ic_gem.png', height: 60, width: 60, errorBuilder: (c, e, s) => const Icon(Icons.workspace_premium, color: Colors.white, size: 60))
+            Image.asset('assets/images/img_logo.png', height: 60, width: 60, errorBuilder: (c, e, s) => const Icon(Icons.workspace_premium, color: Colors.white, size: 60))
           ],
         ),
       ),
@@ -840,7 +840,7 @@ class _ChangePasswordSheetState extends State<ChangePasswordSheet> {
     setState(() => _isLoading = true);
 
     try {
-      // TODO: Implement password change logic
+      // Fungsi ubah password akan diimplementasikan di sini
       await Future.delayed(const Duration(seconds: 2));
       
       if (mounted) {
