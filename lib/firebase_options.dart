@@ -1,59 +1,31 @@
 // File ini berisi konfigurasi Firebase
-// API Key akan diambil dari environment variables untuk keamanan
+// API Key diambil dari file google-services.json asli untuk konektivitas langsung
 
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 import 'package:flutter/foundation.dart' show kIsWeb;
 
-// Default options - akan dioverride dengan environment variables
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      // Web configuration
+      // Web configuration (menggunakan data dari sentient-chess-app)
       return const FirebaseOptions(
-        apiKey: String.fromEnvironment(
-          'FIREBASE_API_KEY',
-          defaultValue: 'your-web-api-key-here',
-        ),
-        authDomain: String.fromEnvironment(
-          'FIREBASE_AUTH_DOMAIN',
-          defaultValue: 'sentient-chess-app.firebaseapp.com',
-        ),
-        projectId: String.fromEnvironment(
-          'FIREBASE_PROJECT_ID',
-          defaultValue: 'sentient-chess-app',
-        ),
-        storageBucket: String.fromEnvironment(
-          'FIREBASE_STORAGE_BUCKET',
-          defaultValue: 'sentient-chess-app.appspot.com',
-        ),
-        messagingSenderId: String.fromEnvironment(
-          'FIREBASE_MESSAGING_SENDER_ID',
-          defaultValue: '123456789012',
-        ),
-        appId: String.fromEnvironment(
-          'FIREBASE_APP_ID',
-          defaultValue: '1:123456789012:web:abcdef123456',
-        ),
-        measurementId: String.fromEnvironment(
-          'FIREBASE_MEASUREMENT_ID',
-          defaultValue: 'G-XXXXXXXXXX',
-        ),
-      );
-    } else {
-      // Mobile configuration
-      return const FirebaseOptions(
-        apiKey: String.fromEnvironment(
-          'FIREBASE_API_KEY',
-          defaultValue: 'your-mobile-api-key-here',
-        ),
+        apiKey: 'AIzaSyCzlL748dlENTA_qzNcAA5lJuO6SzIM6OE',
         authDomain: 'sentient-chess-app.firebaseapp.com',
         projectId: 'sentient-chess-app',
-        storageBucket: 'sentient-chess-app.appspot.com',
-        messagingSenderId: '123456789012',
-        appId: String.fromEnvironment(
-          'FIREBASE_APP_ID',
-          defaultValue: '1:123456789012:android:abcdef123456',
-        ),
+        storageBucket: 'sentient-chess-app.firebasestorage.app',
+        messagingSenderId: '815651012630',
+        appId: '1:815651012630:web:abcdef123456', // default web placeholder
+        measurementId: 'G-XXXXXXXXXX',
+      );
+    } else {
+      // Mobile configuration (diambil langsung dari android/app/google-services.json)
+      return const FirebaseOptions(
+        apiKey: 'AIzaSyCzlL748dlENTA_qzNcAA5lJuO6SzIM6OE',
+        authDomain: 'sentient-chess-app.firebaseapp.com',
+        projectId: 'sentient-chess-app',
+        storageBucket: 'sentient-chess-app.firebasestorage.app',
+        messagingSenderId: '815651012630',
+        appId: '1:815651012630:android:37c12e54792f9e2d3ff537',
         measurementId: 'G-XXXXXXXXXX',
       );
     }

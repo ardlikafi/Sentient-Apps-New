@@ -94,9 +94,10 @@ class _ChessGameScreenState extends State<ChessGameScreen> with TickerProviderSt
     if (piece.isEmpty) return false;
     
     final isWhitePiece = _isWhitePiece(piece);
-    final isTargetWhite = targetPiece.isNotEmpty ? _isWhitePiece(targetPiece) : false;
-    
-    if (isWhitePiece == isTargetWhite) return false;
+    if (targetPiece.isNotEmpty) {
+      final isTargetWhite = _isWhitePiece(targetPiece);
+      if (isWhitePiece == isTargetWhite) return false;
+    }
     
     final rowDiff = toRow - fromRow;
     final colDiff = toCol - fromCol;
@@ -196,10 +197,18 @@ class _ChessGameScreenState extends State<ChessGameScreen> with TickerProviderSt
           }
         }
         
+        // Pawn Promotion: Promote White Pawn to Queen if it reaches row 0, Black to Queen if reaches row 7
+        String movedPiece = selectedPiece!;
+        if (movedPiece == '♙' && row == 0) {
+          movedPiece = '♕';
+        } else if (movedPiece == '♟' && row == 7) {
+          movedPiece = '♛';
+        }
+        
         final moveNotation = '${board[selectedRow!][selectedCol!]}${String.fromCharCode(97 + selectedCol!)}${8 - selectedRow!} → ${String.fromCharCode(97 + col)}${8 - row}';
         
         setState(() {
-          board[row][col] = selectedPiece!;
+          board[row][col] = movedPiece;
           board[selectedRow!][selectedCol!] = '';
           selectedPiece = null;
           selectedRow = null;
@@ -215,19 +224,30 @@ class _ChessGameScreenState extends State<ChessGameScreen> with TickerProviderSt
         
         // AI move after player move
         if (widget.isAIGame && currentPlayer == 'black' && isGameActive) {
-          Future.delayed(const Duration(milliseconds: 1000), () {
+          Future.delayed(const Duration(milliseconds: 600), () {
             if (mounted && isGameActive) {
               _makeAIMove();
             }
           });
         }
       } else {
-        setState(() {
-          selectedPiece = null;
-          selectedRow = null;
-          selectedCol = null;
-        });
-        _pulseController.reverse();
+        // UX Upgrade: Switch selection if user taps on another piece of their own color
+        final targetPiece = board[row][col];
+        if (targetPiece.isNotEmpty && _isWhitePiece(targetPiece) == (currentPlayer == 'white')) {
+          setState(() {
+            selectedPiece = targetPiece;
+            selectedRow = row;
+            selectedCol = col;
+          });
+          _pulseController.forward();
+        } else {
+          setState(() {
+            selectedPiece = null;
+            selectedRow = null;
+            selectedCol = null;
+          });
+          _pulseController.reverse();
+        }
       }
     }
   }
@@ -313,7 +333,14 @@ class _ChessGameScreenState extends State<ChessGameScreen> with TickerProviderSt
       }
     }
     
-    if (possibleMoves.isEmpty) return;
+    if (possibleMoves.isEmpty) {
+      // Stalemate or checkmate check
+      setState(() {
+        isGameActive = false;
+        gameStatus = 'White wins!';
+      });
+      return;
+    }
     
     // Sort moves by score and add some randomness based on difficulty
     possibleMoves.sort((a, b) => b['score'].compareTo(a['score']));
@@ -321,23 +348,22 @@ class _ChessGameScreenState extends State<ChessGameScreen> with TickerProviderSt
     Map<String, dynamic> selectedMove;
     switch (widget.aiDifficulty) {
       case 'easy':
-        // Random move from worst 30%
         final worstMoves = possibleMoves.skip((possibleMoves.length * 0.7).floor()).toList();
-        selectedMove = worstMoves[Random().nextInt(worstMoves.length)];
+        final selectedList = worstMoves.isNotEmpty ? worstMoves : possibleMoves;
+        selectedMove = selectedList[Random().nextInt(selectedList.length)];
         break;
       case 'medium':
-        // Random move from middle 40%
         final middleMoves = possibleMoves.skip((possibleMoves.length * 0.3).floor())
                                    .take((possibleMoves.length * 0.4).floor()).toList();
-        selectedMove = middleMoves[Random().nextInt(middleMoves.length)];
+        final selectedList = middleMoves.isNotEmpty ? middleMoves : possibleMoves;
+        selectedMove = selectedList[Random().nextInt(selectedList.length)];
         break;
       case 'hard':
-        // Random move from best 20%
         final bestMoves = possibleMoves.take((possibleMoves.length * 0.2).ceil()).toList();
-        selectedMove = bestMoves[Random().nextInt(bestMoves.length)];
+        final selectedList = bestMoves.isNotEmpty ? bestMoves : possibleMoves;
+        selectedMove = selectedList[Random().nextInt(selectedList.length)];
         break;
       case 'grandmaster':
-        // Always best move
         selectedMove = possibleMoves.first;
         break;
       default:
@@ -359,10 +385,16 @@ class _ChessGameScreenState extends State<ChessGameScreen> with TickerProviderSt
       }
     }
     
+    // AI Pawn Promotion: Promote to Queen if reaches row 7
+    String movedPiece = board[fromRow][fromCol];
+    if (movedPiece == '♟' && toRow == 7) {
+      movedPiece = '♛';
+    }
+    
     final moveNotation = '${board[fromRow][fromCol]}${String.fromCharCode(97 + fromCol)}${8 - fromRow} → ${String.fromCharCode(97 + toCol)}${8 - toRow}';
     
     setState(() {
-      board[toRow][toCol] = board[fromRow][fromCol];
+      board[toRow][toCol] = movedPiece;
       board[fromRow][fromCol] = '';
       currentPlayer = 'white';
       gameStatus = 'White to move';
@@ -419,10 +451,19 @@ class _ChessGameScreenState extends State<ChessGameScreen> with TickerProviderSt
           child: Column(
             children: [
               _buildHeader(),
-              _buildGameStats(),
-              Expanded(child: _buildChessBoard()),
-              _buildMoveHistory(),
-              _buildBottomControls(),
+              Expanded(
+                child: SingleChildScrollView(
+                  physics: const ClampingScrollPhysics(),
+                  child: Column(
+                    children: [
+                      _buildGameStats(),
+                      _buildChessBoard(),
+                      _buildMoveHistory(),
+                      _buildBottomControls(),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -432,7 +473,7 @@ class _ChessGameScreenState extends State<ChessGameScreen> with TickerProviderSt
 
   Widget _buildHeader() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
           IconButton(
@@ -616,8 +657,8 @@ class _ChessGameScreenState extends State<ChessGameScreen> with TickerProviderSt
 
   Widget _buildGameStats() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
@@ -713,7 +754,7 @@ class _ChessGameScreenState extends State<ChessGameScreen> with TickerProviderSt
 
   Widget _buildChessBoard() {
     return Container(
-      margin: const EdgeInsets.all(16),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
@@ -805,8 +846,8 @@ class _ChessGameScreenState extends State<ChessGameScreen> with TickerProviderSt
 
   Widget _buildMoveHistory() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      height: 80,
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      height: 65,
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
@@ -816,7 +857,7 @@ class _ChessGameScreenState extends State<ChessGameScreen> with TickerProviderSt
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Padding(
-            padding: EdgeInsets.all(8),
+            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             child: Text(
               'Move History',
               style: TextStyle(
@@ -862,7 +903,7 @@ class _ChessGameScreenState extends State<ChessGameScreen> with TickerProviderSt
 
   Widget _buildBottomControls() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
@@ -1000,7 +1041,7 @@ class _ChessGameScreenState extends State<ChessGameScreen> with TickerProviderSt
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('Premium shop coming in next update! 🎉'),
+                  content: Text('Wait for more updates! 🎉'),
                   backgroundColor: Colors.blue,
                 ),
               );
@@ -1014,6 +1055,44 @@ class _ChessGameScreenState extends State<ChessGameScreen> with TickerProviderSt
         ],
       ),
     );
+  }
+
+  void _simulateSkinPurchase(String skinName) {
+    Navigator.pop(context); // Close the selector
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Purchasing Skin...'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text('Buying "$skinName"...'),
+          ],
+        ),
+      ),
+    );
+
+    Future.delayed(const Duration(seconds: 2), () {
+      Navigator.of(context).pop(); // Close loading
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Success! You bought the "$skinName" skin.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      setState(() {
+        if (skinName.contains('Wood') || skinName.contains('Marble') || skinName.contains('Glass') || skinName.contains('Crystal')) {
+          currentBoardTheme = skinName;
+        } else if (skinName.contains('Royal') || skinName.contains('Neon') || skinName.contains('Dragon')) {
+          currentPieceSet = skinName;
+        } else {
+          currentBackgroundTheme = skinName;
+        }
+      });
+    });
   }
 
   Widget _buildSkinCategory(String title, List<String> items) {
@@ -1030,20 +1109,38 @@ class _ChessGameScreenState extends State<ChessGameScreen> with TickerProviderSt
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
-          runSpacing: 4,
+          runSpacing: 8,
           children: items.map((item) {
-            return Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white.withOpacity(0.2)),
-              ),
-              child: Text(
-                item,
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 11,
+            bool isSelected = currentBoardTheme == item || currentPieceSet == item || currentBackgroundTheme == item;
+            return GestureDetector(
+              onTap: () {
+                if (!isSelected) {
+                  _simulateSkinPurchase(item);
+                }
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isSelected ? Colors.blue.withOpacity(0.5) : Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: isSelected ? Colors.blue : Colors.white.withOpacity(0.2)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      item,
+                      style: TextStyle(
+                        color: isSelected ? Colors.white : Colors.white70,
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        fontSize: 12,
+                      ),
+                    ),
+                    if (!isSelected) ...[
+                      const SizedBox(width: 4),
+                      const Icon(Icons.shopping_cart, color: Colors.white70, size: 14),
+                    ]
+                  ],
                 ),
               ),
             );

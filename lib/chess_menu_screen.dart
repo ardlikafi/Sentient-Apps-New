@@ -243,7 +243,7 @@ class ChessMenuScreen extends StatelessWidget {
         children: [
           // Background gradient with glass effect
           Container(
-            height: 180,
+            height: 200,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(24),
               gradient: const LinearGradient(
@@ -268,7 +268,7 @@ class ChessMenuScreen extends StatelessWidget {
           
           // Glass overlay
           Container(
-            height: 180,
+            height: 200,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(24),
               color: Colors.white.withOpacity(0.1),
@@ -281,8 +281,8 @@ class ChessMenuScreen extends StatelessWidget {
           
           // Content
           Container(
-            height: 180,
-            padding: const EdgeInsets.all(24),
+            height: 200,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             child: Row(
               children: [
                 // Left side - Play button
@@ -293,33 +293,33 @@ class ChessMenuScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
-                        width: 60,
-                        height: 60,
+                        width: 50,
+                        height: 50,
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.2),
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: const Icon(
                           Icons.play_arrow_rounded,
-                          size: 36,
+                          size: 32,
                           color: Colors.white,
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
                       const Text(
                         'Quick Play',
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: 28,
+                          fontSize: 26,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 2),
                       Text(
                         'Start a game instantly',
                         style: TextStyle(
                           color: Colors.white.withOpacity(0.8),
-                          fontSize: 14,
+                          fontSize: 13,
                         ),
                       ),
                     ],
@@ -353,12 +353,12 @@ class ChessMenuScreen extends StatelessWidget {
                             );
                           },
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                             child: const Text(
                               'PLAY\nNOW',
                               style: TextStyle(
                                 color: Color(0xFF2E7D32),
-                                fontSize: 14,
+                                fontSize: 13,
                                 fontWeight: FontWeight.bold,
                                 height: 1.2,
                               ),

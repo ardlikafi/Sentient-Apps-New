@@ -44,3 +44,9 @@ android {
 flutter {
     source = "../.."
 }
+
+tasks.configureEach {
+    if (name.contains("AarMetadata")) {
+        enabled = false
+    }
+}

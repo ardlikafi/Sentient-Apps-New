@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_service.dart';
 import 'demo_payment_page.dart';
+import 'simulated_order_service.dart';
 
 const Color kDarkBlue = Color(0xFF000A26);
 const Color kPrimaryBlue = Color(0xFF0F52BA);
@@ -52,7 +53,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
       // If payment was successful
       if (result == true) {
+        await FirebaseService.updatePremiumStatus(true);
         _showSuccessSnackBar('Payment successful! Subscription activated.');
+        if (mounted) {
+          setState(() {});
+        }
       }
 
     } catch (e) {
@@ -257,12 +262,48 @@ class SubscriptionTierCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isCurrentPremium = SimulatedOrderService.isPremium;
+    
+    // Choose beautiful gradient based on Tier Name
+    final List<Color> gradientColors;
+    final Color textColor;
+    final Color buttonBgColor;
+    final Color buttonTextColor;
+    
+    if (tierName.contains('Queen')) {
+      gradientColors = const [Color(0xFFD4AF37), Color(0xFFFFDF00), Color(0xFFAA7C11)]; // Luxury Gold
+      textColor = const Color(0xFF1A1A2E);
+      buttonBgColor = const Color(0xFF1A1A2E);
+      buttonTextColor = const Color(0xFFFFDF00);
+    } else if (tierName.contains('Knight')) {
+      gradientColors = const [Color(0xFFE5E4E2), Color(0xFFB0C4DE), Color(0xFF708090)]; // Platinum Silver
+      textColor = const Color(0xFF000A26);
+      buttonBgColor = const Color(0xFF000A26);
+      buttonTextColor = Colors.white;
+    } else {
+      gradientColors = const [Color(0xFF0F52BA), Color(0xFF00207B), Color(0xFF000A26)]; // Sapphire Blue
+      textColor = Colors.white;
+      buttonBgColor = Colors.white;
+      buttonTextColor = const Color(0xFF0F52BA);
+    }
+
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8.0),
-      padding: const EdgeInsets.all(20.0),
+      margin: const EdgeInsets.symmetric(vertical: 10.0),
+      padding: const EdgeInsets.all(22.0),
       decoration: BoxDecoration(
-        color: kPrimaryBlue,
-        borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          colors: gradientColors,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: gradientColors.first.withOpacity(0.35),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -270,80 +311,115 @@ class SubscriptionTierCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Image.asset(iconPath, height: 48, errorBuilder: (c,e,s) => const Icon(Icons.shield, color: Colors.white, size: 48)),
-              const SizedBox(width: 16),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    tierName,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                      color: Colors.white,
-                    ),
-                  ),
-                  Text(
-                    duration,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.white.withOpacity(0.8),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Rp ${price.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
+              Image.asset(
+                iconPath,
+                height: 48,
+                errorBuilder: (c, e, s) => Icon(Icons.shield, color: textColor, size: 48),
               ),
-              const Spacer(),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          tierName,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 19,
+                            color: textColor,
+                            fontFamily: 'Poppins',
+                          ),
+                        ),
+                        if (isCurrentPremium) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: textColor.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              'ACTIVE',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: textColor,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    Text(
+                      duration,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: textColor.withOpacity(0.8),
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Rp ${price.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: kPrimaryBlue,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  backgroundColor: buttonBgColor,
+                  foregroundColor: buttonTextColor,
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(25),
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                  elevation: 3,
-                  shadowColor: Colors.black26,
+                  elevation: 4,
+                  shadowColor: Colors.black38,
                 ),
                 onPressed: isProcessing ? null : onPurchase,
-                child: isProcessing 
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(kPrimaryBlue),
+                child: isProcessing
+                    ? SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(buttonTextColor),
+                        ),
+                      )
+                    : Text(
+                        isCurrentPremium ? 'Renew' : 'Buy Now',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                          fontFamily: 'Poppins',
+                        ),
                       ),
-                    )
-                  : const Text(
-                      'Buy Now', 
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
               ),
             ],
           ),
           const SizedBox(height: 20),
-          const Text(
+          Divider(color: textColor.withOpacity(0.2), height: 1),
+          const SizedBox(height: 16),
+          Text(
             'Benefit',
             style: TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 16,
-              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+              color: textColor,
+              fontFamily: 'Poppins',
             ),
           ),
           const SizedBox(height: 8),
-          ...benefits.map((benefit) => _BenefitItem(text: benefit)).toList(),
+          ...benefits.map((benefit) => _BenefitItem(text: benefit, color: textColor)).toList(),
         ],
       ),
     );
@@ -352,7 +428,8 @@ class SubscriptionTierCard extends StatelessWidget {
 
 class _BenefitItem extends StatelessWidget {
   final String text;
-  const _BenefitItem({required this.text});
+  final Color color;
+  const _BenefitItem({required this.text, required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -363,8 +440,8 @@ class _BenefitItem extends StatelessWidget {
           Container(
             width: 6,
             height: 6,
-            decoration: const BoxDecoration(
-              color: Colors.white,
+            decoration: BoxDecoration(
+              color: color,
               shape: BoxShape.circle,
             ),
           ),
@@ -372,7 +449,11 @@ class _BenefitItem extends StatelessWidget {
           Expanded(
             child: Text(
               text,
-              style: TextStyle(color: Colors.white.withOpacity(0.9)),
+              style: TextStyle(
+                color: color.withOpacity(0.9),
+                fontFamily: 'Poppins',
+                fontSize: 13,
+              ),
             ),
           ),
         ],

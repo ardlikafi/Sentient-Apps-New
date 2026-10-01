@@ -8,6 +8,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'api_service.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 import 'dart:io';
+import 'course_detail_screen.dart';
+import 'simulated_order_widgets.dart';
+import 'simulated_order_service.dart';
 
 // Definisikan konstanta warna
 const Color kDarkBlue = Color(0xFF000A26);
@@ -50,12 +53,25 @@ class _CourseScreenState extends State<CourseScreen> {
   final int _finishedCourses = 19;
   final int _inProgressCourses = 4;
 
+  StreamSubscription? _orderSubscription;
+
   @override
   void initState() {
     super.initState();
     _changeQuote();
     _fetchProfileData();
     _loadLocalAvatar();
+    _orderSubscription = SimulatedOrderService.orderStream.listen((_) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _orderSubscription?.cancel();
+    super.dispose();
   }
 
   @override
@@ -899,17 +915,20 @@ class _CourseCardState extends State<CourseCard> {
     final price = widget.course['price'] as num? ?? 0;
     final String? assetImage = widget.course['imageUrl'] as String?;
 
+    final isPremium = SimulatedOrderService.isPremium;
+
     return GestureDetector(
       onTap: () {
-        if (_videoId != null) {
-          // Hanya memuat player saat dialog dibuka (mengatasi error 15)
-          showDialog(
-            context: context,
-            builder: (context) => YouTubeDialog(videoId: _videoId!),
-          );
-        } else {
-          print("Course tapped: ${widget.course['title']} (No Video)");
+        if (price > 0 && !isPremium) {
+          PremiumPaywallDialog.show(context);
+          return;
         }
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => CourseDetailScreen(course: widget.course, videoId: _videoId),
+          ),
+        );
       },
       child: Container(
         width: 160,
@@ -954,7 +973,7 @@ class _CourseCardState extends State<CourseCard> {
                   ),
 
                   // 2. Layer Icon Play (Jika ada video)
-                  if (_videoId != null)
+                  if (_videoId != null && (price == 0 || isPremium))
                     Positioned.fill(
                       child: Center(
                         child: Container(
@@ -968,6 +987,55 @@ class _CourseCardState extends State<CourseCard> {
                             color: Colors.white,
                             size: 32,
                           ),
+                        ),
+                      ),
+                    ),
+
+                  // 3. Layer Lock Icon Overlay
+                  if (price > 0 && !isPremium)
+                    Positioned.fill(
+                      child: Container(
+                        color: Colors.black.withOpacity(0.55),
+                        child: const Center(
+                          child: Icon(
+                            Icons.lock_outline_rounded,
+                            color: Colors.amber,
+                            size: 36,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                  // 4. Premium Gold Badge Banner
+                  if (price > 0 && !isPremium)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.amber,
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 4,
+                            )
+                          ],
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.workspace_premium, size: 12, color: kDarkBlue),
+                            SizedBox(width: 4),
+                            Text(
+                              'PREMIUM',
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                                color: kDarkBlue,
+                              ),
+                            )
+                          ],
                         ),
                       ),
                     ),

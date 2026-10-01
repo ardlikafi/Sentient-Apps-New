@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:sentient/liked_products_provider.dart';
 import 'package:sentient/firebase_service.dart';
 import 'package:sentient/home_screen.dart';
+import 'package:sentient/main_navigation.dart';
 import 'signup_screen.dart';
 import 'animated_route.dart';
 
@@ -32,7 +33,7 @@ class _SignUpChoiceScreenState extends State<SignUpChoiceScreen> {
 
         if (mounted) {
           Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (_) => const HomeScreen()),
+            MaterialPageRoute(builder: (_) => const MainNavigation()),
                 (route) => false,
           );
         }

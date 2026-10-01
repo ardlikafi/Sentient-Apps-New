@@ -4,6 +4,7 @@ import 'profile_screen.dart';
 import 'chess_menu_screen.dart';
 import 'course_screen.dart';
 import 'shop_screen.dart';
+import 'language_service.dart';
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
@@ -24,7 +25,27 @@ class _MainNavigationState extends State<MainNavigation> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    LanguageService.languageNotifier.addListener(_onLanguageChanged);
+  }
+
+  @override
+  void dispose() {
+    LanguageService.languageNotifier.removeListener(_onLanguageChanged);
+    super.dispose();
+  }
+
+  void _onLanguageChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final lang = LanguageService.languageNotifier.value;
+    
     return Scaffold(
       body: IndexedStack(
         index: _currentIndex,
@@ -75,7 +96,7 @@ class _MainNavigationState extends State<MainNavigation> {
                 ),
                 child: const Icon(Icons.home),
               ),
-              label: 'Home',
+              label: LanguageService.translate('home', languageCode: lang),
             ),
             BottomNavigationBarItem(
               icon: Container(
@@ -88,7 +109,7 @@ class _MainNavigationState extends State<MainNavigation> {
                 ),
                 child: const Icon(Icons.school),
               ),
-              label: 'Courses',
+              label: LanguageService.translate('courses', languageCode: lang),
             ),
             BottomNavigationBarItem(
               icon: Container(
@@ -101,7 +122,7 @@ class _MainNavigationState extends State<MainNavigation> {
                 ),
                 child: const Icon(Icons.extension),
               ),
-              label: 'Chess',
+              label: LanguageService.translate('chess', languageCode: lang),
             ),
             BottomNavigationBarItem(
               icon: Container(
@@ -114,7 +135,7 @@ class _MainNavigationState extends State<MainNavigation> {
                 ),
                 child: const Icon(Icons.shopping_bag),
               ),
-              label: 'Products',
+              label: LanguageService.translate('shop', languageCode: lang),
             ),
             BottomNavigationBarItem(
               icon: Container(
@@ -127,7 +148,7 @@ class _MainNavigationState extends State<MainNavigation> {
                 ),
                 child: const Icon(Icons.person),
               ),
-              label: 'Profile',
+              label: LanguageService.translate('profile', languageCode: lang),
             ),
           ],
         ),

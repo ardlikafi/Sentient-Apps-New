@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:sentient/home_screen.dart';
+import 'package:sentient/main_navigation.dart';
 import 'package:sentient/login_screen.dart';
 
 class VerifyEmailScreen extends StatefulWidget {
@@ -59,7 +59,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen>
     if (_isEmailVerified) {
       _timer?.cancel();
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const HomeScreen()),
+        MaterialPageRoute(builder: (context) => const MainNavigation()),
         (route) => false,
       );
     }
@@ -83,7 +83,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen>
   @override
   Widget build(BuildContext context) {
     if (_isEmailVerified) {
-      return const HomeScreen();
+      return const MainNavigation();
     }
 
     return Scaffold(

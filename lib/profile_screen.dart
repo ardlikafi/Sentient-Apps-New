@@ -7,6 +7,10 @@ import 'package:sentient/liked_products_provider.dart';
 import 'edit_profile_sheet.dart';
 import 'account_info_sheet.dart';
 import 'language_service.dart';
+import 'simulated_order_service.dart';
+import 'simulated_order_widgets.dart';
+import 'dart:async';
+import 'dart:io';
 
 const Color kDarkBlue = Color(0xFF000A26);
 const Color kLightBlue = Color(0xFFA6C6D8);
@@ -28,12 +32,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _loading = true;
   String? _error;
   String _currentLanguage = 'en';
+  StreamSubscription? _orderSubscription;
 
   @override
   void initState() {
     super.initState();
     _fetchProfile();
     _loadLanguage();
+    LanguageService.languageNotifier.addListener(_onLanguageChanged);
+    _orderSubscription = SimulatedOrderService.orderStream.listen((_) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    LanguageService.languageNotifier.removeListener(_onLanguageChanged);
+    _orderSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _onLanguageChanged() {
+    if (mounted) {
+      setState(() {
+        _currentLanguage = LanguageService.languageNotifier.value;
+      });
+    }
   }
 
   Future<void> _loadLanguage() async {
@@ -82,7 +108,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return;
     }
 
-    final imageProvider = NetworkImage(avatarUrl);
+    final ImageProvider imageProvider = avatarUrl.toString().startsWith('http')
+        ? NetworkImage(avatarUrl)
+        : FileImage(File(avatarUrl)) as ImageProvider;
 
     showDialog(
       context: context,
@@ -174,7 +202,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 radius: 52,
                 backgroundColor: kLightBlue,
                 backgroundImage: (avatarUrl != null && avatarUrl.isNotEmpty)
-                    ? NetworkImage(avatarUrl)
+                    ? (avatarUrl.startsWith('http')
+                        ? NetworkImage(avatarUrl)
+                        : FileImage(File(avatarUrl)) as ImageProvider)
                     : null,
                 child: (avatarUrl == null || avatarUrl.isEmpty)
                     ? const Icon(Icons.person, size: 60, color: kDarkBlue)
@@ -198,14 +228,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildSubscriptionCard() {
+    final isPremium = SimulatedOrderService.isPremium;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: Container(
         padding: const EdgeInsets.all(20.0),
         decoration: BoxDecoration(
-          color: kPrimaryBlue,
+          color: isPremium ? const Color(0xFF0F2B59) : kPrimaryBlue,
           borderRadius: BorderRadius.circular(20),
-          boxShadow: [BoxShadow(color: kPrimaryBlue.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 5))],
+          border: isPremium ? Border.all(color: Colors.amber, width: 1.5) : null,
+          boxShadow: [
+            BoxShadow(
+              color: isPremium ? Colors.amber.withOpacity(0.2) : kPrimaryBlue.withOpacity(0.3),
+              blurRadius: 10,
+              offset: const Offset(0, 5),
+            )
+          ],
         ),
         child: Row(
           children: [
@@ -213,26 +252,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Upgrade Subscription', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white)),
+                  Text(
+                    isPremium ? '★ Sentient Premium Active' : 'Upgrade Subscription',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: isPremium ? Colors.amber : Colors.white,
+                    ),
+                  ),
                   const SizedBox(height: 4),
-                  Text('Enjoy all the benefits', style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.8))),
+                  Text(
+                    isPremium ? 'Enjoy all the premium features & courses' : 'Enjoy all the benefits',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: isPremium ? Colors.white70 : Colors.white.withOpacity(0.8),
+                    ),
+                  ),
                   const SizedBox(height: 16),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: kPrimaryBlue,
+                      backgroundColor: isPremium ? Colors.amber : Colors.white,
+                      foregroundColor: isPremium ? kDarkBlue : kPrimaryBlue,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                     ),
                     onPressed: () {
                       Navigator.push(context, MaterialPageRoute(builder: (context) => const SubscriptionScreen()));
                     },
-                    child: const Text('Upgrade Now', style: TextStyle(fontWeight: FontWeight.bold)),
+                    child: Text(
+                      isPremium ? 'Manage Plans' : 'Upgrade Now',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ],
               ),
             ),
-            Image.asset('assets/images/img_logo.png', height: 60, width: 60, errorBuilder: (c, e, s) => const Icon(Icons.workspace_premium, color: Colors.white, size: 60))
+            isPremium
+                ? const Icon(Icons.workspace_premium, color: Colors.amber, size: 60)
+                : Image.asset(
+                    'assets/images/img_logo.png',
+                    height: 60,
+                    width: 60,
+                    errorBuilder: (c, e, s) => const Icon(Icons.workspace_premium, color: Colors.white, size: 60),
+                  )
           ],
         ),
       ),
@@ -299,6 +361,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: ChangePasswordSheet(isSocialLogin: isSocial),
               ),
             );
+          },
+        ),
+        _buildMenuItem(
+          icon: Icons.shopping_bag_outlined,
+          title: 'Pesanan Saya (${SimulatedOrderService.orders.length})',
+          subtitle: 'Lihat riwayat pembelian & status pengiriman',
+          onTap: () {
+            MyOrdersSheet.show(context);
           },
           hasDivider: false,
         ),
@@ -663,23 +733,91 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _showAbout() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            const Icon(Icons.extension, color: kPrimaryBlue),
-            const SizedBox(width: 8),
-            Text(LanguageService.translate('about', languageCode: _currentLanguage)),
-          ],
-        ),
-        content: Text(
-          LanguageService.translate('about_content', languageCode: _currentLanguage),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(LanguageService.translate('cancel', languageCode: _currentLanguage)),
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [kHeaderGradientStart, kHeaderGradientEnd],
+            ),
           ),
-        ],
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Image.asset(
+                  'assets/images/img_logo.png',
+                  height: 60,
+                  width: 60,
+                  errorBuilder: (c, e, s) => const Icon(Icons.extension, color: Colors.white, size: 60),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Sentient Apps',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Version 1.0.0 (Premium)',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.7),
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white.withOpacity(0.1)),
+                ),
+                child: Text(
+                  LanguageService.translate('about_content', languageCode: _currentLanguage),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    height: 1.5,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: kPrimaryBlue,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: Text(
+                    LanguageService.translate('cancel', languageCode: _currentLanguage),
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

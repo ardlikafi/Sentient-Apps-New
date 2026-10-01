@@ -180,7 +180,9 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
     if (_newProfileImageFile != null) {
       imageProvider = FileImage(_newProfileImageFile!);
     } else if (_currentAvatarUrl != null && _currentAvatarUrl!.isNotEmpty) {
-      imageProvider = NetworkImage(_currentAvatarUrl!);
+      imageProvider = _currentAvatarUrl!.startsWith('http')
+          ? NetworkImage(_currentAvatarUrl!)
+          : FileImage(File(_currentAvatarUrl!)) as ImageProvider;
     }
 
     return GestureDetector(

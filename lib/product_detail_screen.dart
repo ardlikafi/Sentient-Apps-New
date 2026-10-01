@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'simulated_order_widgets.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final Map<String, dynamic> product;
@@ -17,20 +18,24 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   String? _selectedSize;
   final List<String> _sizes = ['25 cm', '50 cm', '75 cm'];
 
-  Future<void> _launchTokopediaUrl() async {
-    final Uri url = Uri.parse(
-      'https://www.tokopedia.com/uncletoys88/product?utm_source=salinlink&utm_medium=share&utm_campaign=Shop-141030092-265491-Semua',
-    );
-    try {
-      await launchUrl(url);
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: Could not launch URL'),
-          backgroundColor: Colors.redAccent,
+  void _simulatePurchase() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
         ),
-      );
-    }
+        child: SizedBox(
+          height: MediaQuery.of(context).size.height * 0.85,
+          child: CheckoutBottomSheet(
+            product: widget.product,
+            size: _selectedSize ?? '50 cm',
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -207,7 +212,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               );
                               return;
                             }
-                            _launchTokopediaUrl();
+                            _simulatePurchase();
                           },
                           child: const Text(
                             'Buy Now',

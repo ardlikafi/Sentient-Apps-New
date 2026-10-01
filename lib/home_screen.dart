@@ -10,7 +10,9 @@ import 'firebase_service.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 import 'dart:io';
 import 'package:sentient/product_detail_screen.dart';
-import 'package:sentient/article_detail_screen.dart'; // Import ArticleDetailScreen
+import 'package:sentient/article_detail_screen.dart';
+import 'simulated_order_service.dart';
+import 'simulated_order_widgets.dart';
 
 // Definisikan color palette Anda
 const Color kDarkBlue = Color(0xFF000A26);
@@ -865,10 +867,23 @@ class _CoursesSectionState extends State<CoursesSection> {
   String _selectedFilter = "All Course";
   List<Map<String, dynamic>> _filteredCourses = [];
 
+  StreamSubscription? _orderSubscription;
+
   @override
   void initState() {
     super.initState();
     _applyFilter();
+    _orderSubscription = SimulatedOrderService.orderStream.listen((_) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _orderSubscription?.cancel();
+    super.dispose();
   }
 
   void _applyFilter() {
@@ -1050,9 +1065,14 @@ class _CourseCardState extends State<CourseCard> {
     final String? imageUrl = widget.course['imageUrl'] as String?;
     final String? thumbnailUrl =
         _videoId != null ? 'https://img.youtube.com/vi/$_videoId/0.jpg' : null;
+    final isPremium = SimulatedOrderService.isPremium;
 
     return GestureDetector(
       onTap: () {
+        if (price > 0 && !isPremium) {
+          PremiumPaywallDialog.show(context);
+          return;
+        }
         if (_videoId != null) {
           // Hanya memuat player saat dialog dibuka (mengatasi error 15)
           showDialog(
@@ -1169,7 +1189,7 @@ class _CourseCardState extends State<CourseCard> {
                       ),
                     ),
 
-                  if (_videoId != null)
+                  if (_videoId != null && (price == 0 || isPremium))
                     Positioned.fill(
                       child: Center(
                         child: Container(
@@ -1183,6 +1203,55 @@ class _CourseCardState extends State<CourseCard> {
                             color: Colors.white,
                             size: 40,
                           ),
+                        ),
+                      ),
+                    ),
+
+                  // Lock Overlay
+                  if (price > 0 && !isPremium)
+                    Positioned.fill(
+                      child: Container(
+                        color: Colors.black.withOpacity(0.55),
+                        child: const Center(
+                          child: Icon(
+                            Icons.lock_outline_rounded,
+                            color: Colors.amber,
+                            size: 36,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                  // Premium Banner Label
+                  if (price > 0 && !isPremium)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.amber,
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 4,
+                            )
+                          ],
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.workspace_premium, size: 12, color: kDarkBlue),
+                            SizedBox(width: 4),
+                            Text(
+                              'PREMIUM',
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                                color: kDarkBlue,
+                              ),
+                            )
+                          ],
                         ),
                       ),
                     ),

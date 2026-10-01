@@ -1,7 +1,15 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart';
 
 class LanguageService {
   static const String _languageKey = 'selected_language';
+  
+  static final ValueNotifier<String> languageNotifier = ValueNotifier<String>('en');
+  
+  static Future<void> init() async {
+    final lang = await getCurrentLanguage();
+    languageNotifier.value = lang;
+  }
   
   static const Map<String, Map<String, String>> _translations = {
     'en': {
@@ -41,6 +49,12 @@ class LanguageService {
       'receive_push_notifications': 'Receive push notifications',
       'receive_email_updates': 'Receive email updates',
       'get_notified_about_new_courses': 'Get notified about new courses',
+      'chess': 'Chess',
+      'chess_game': 'Chess Game',
+      'play_vs_ai': 'Play vs AI',
+      'game_history': 'Game History',
+      'premium_badge': 'Premium Active',
+      'free_badge': 'Free Account',
       'privacy_policy_content': '''Privacy Policy for Sentient Apps
 
 1. Information We Collect
@@ -127,6 +141,12 @@ All rights reserved.''',
       'receive_push_notifications': 'Terima notifikasi push',
       'receive_email_updates': 'Terima update email',
       'get_notified_about_new_courses': 'Dapatkan notifikasi tentang kursus baru',
+      'chess': 'Catur',
+      'chess_game': 'Permainan Catur',
+      'play_vs_ai': 'Main vs AI',
+      'game_history': 'Riwayat Game',
+      'premium_badge': 'Premium Aktif',
+      'free_badge': 'Akun Gratis',
       'privacy_policy_content': '''Kebijakan Privasi untuk Sentient Apps
 
 1. Informasi yang Kami Kumpulkan
@@ -213,6 +233,12 @@ Hak cipta dilindungi.''',
       'receive_push_notifications': '接收推送通知',
       'receive_email_updates': '接收电子邮件更新',
       'get_notified_about_new_courses': '获取新课程通知',
+      'chess': '国际象棋',
+      'chess_game': '下棋游戏',
+      'play_vs_ai': '人机对战',
+      'game_history': '对局历史',
+      'premium_badge': '尊享会员',
+      'free_badge': '免费账户',
       'privacy_policy_content': '''Sentient Apps 隐私政策
 
 1. 我们收集的信息
@@ -267,10 +293,11 @@ Hak cipta dilindungi.''',
   static Future<void> setLanguage(String languageCode) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_languageKey, languageCode);
+    languageNotifier.value = languageCode;
   }
 
   static String translate(String key, {String? languageCode}) {
-    final lang = languageCode ?? 'en'; // Default to English if not specified
+    final lang = languageCode ?? languageNotifier.value; // Default to notifier's value
     return _translations[lang]?[key] ?? _translations['en']?[key] ?? key;
   }
 

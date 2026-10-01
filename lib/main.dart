@@ -12,18 +12,28 @@ import 'signup_choice_screen.dart';
 import 'home_screen.dart';
 import 'main_navigation.dart';
 import 'firebase_options.dart';
+import 'language_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize dynamic localization service
+  await LanguageService.init();
   
   // Debug: Print Firebase options
   final options = DefaultFirebaseOptions.currentPlatform;
   print('Firebase API Key: ${options.apiKey}');
   print('Firebase App ID: ${options.appId}');
   
-  await Firebase.initializeApp(
-    options: options,
-  );
+  try {
+    if (Firebase.apps.isEmpty) {
+      await Firebase.initializeApp(
+        options: options,
+      );
+    }
+  } catch (e) {
+    print('Firebase initialization bypassed/failed: $e');
+  }
   runApp(
     ChangeNotifierProvider(
       create: (context) => LikedProductsProvider(),
@@ -37,22 +47,28 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Sentient Chess',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-      ),
-      debugShowCheckedModeBanner: false,
-      initialRoute: '/',
-      routes: {
-        '/': (context) => const SplashScreen(),
-        '/cta': (context) => const CTAScreen(),
-        '/welcome': (context) => const WelcomeScreen(),
-        '/signup-choice': (context) => const SignUpChoiceScreen(),
-        '/signup': (context) => const SignUpScreen(),
-        '/login': (context) => const LoginScreen(),
-        '/profile': (context) => const ProfileScreen(),
-        '/home': (context) => const MainNavigation(),
+    return ValueListenableBuilder<String>(
+      valueListenable: LanguageService.languageNotifier,
+      builder: (context, langCode, _) {
+        return MaterialApp(
+          key: ValueKey(langCode),
+          title: 'Sentient Chess',
+          theme: ThemeData(
+            colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+          ),
+          debugShowCheckedModeBanner: false,
+          initialRoute: '/',
+          routes: {
+            '/': (context) => const SplashScreen(),
+            '/cta': (context) => const CTAScreen(),
+            '/welcome': (context) => const WelcomeScreen(),
+            '/signup-choice': (context) => const SignUpChoiceScreen(),
+            '/signup': (context) => const SignUpScreen(),
+            '/login': (context) => const LoginScreen(),
+            '/profile': (context) => const ProfileScreen(),
+            '/home': (context) => const MainNavigation(),
+          },
+        );
       },
     );
   }
