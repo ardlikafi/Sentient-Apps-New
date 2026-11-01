@@ -1,18 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
-import 'liked_products_provider.dart';
-import 'splash_screen.dart';
-import 'cta_screen.dart';
-import 'signup_screen.dart';
-import 'login_screen.dart';
-import 'profile_screen.dart';
-import 'welcome_screen.dart';
-import 'signup_choice_screen.dart';
-import 'home_screen.dart';
+import 'package:sentient/core/providers/liked_products_provider.dart';
+import 'package:sentient/features/auth/splash_screen.dart';
+import 'package:sentient/features/home/cta_screen.dart';
+import 'package:sentient/features/auth/signup_screen.dart';
+import 'package:sentient/features/auth/login_screen.dart';
+import 'package:sentient/features/profile/profile_screen.dart';
+import 'package:sentient/features/auth/welcome_screen.dart';
+import 'package:sentient/features/auth/signup_choice_screen.dart';
 import 'main_navigation.dart';
 import 'firebase_options.dart';
-import 'language_service.dart';
+import 'package:sentient/core/services/language_service.dart';
+import 'package:sentient/core/services/seed_service.dart';
+import 'package:sentient/core/services/notification_service.dart';
+import 'package:sentient/core/providers/user_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,12 +33,20 @@ void main() async {
         options: options,
       );
     }
+    // Initialize FCM notifications & token sync
+    await NotificationService.initialize();
+    
+    // Seed initial data if necessary
+    SeedService.seedDatabase();
   } catch (e) {
     print('Firebase initialization bypassed/failed: $e');
   }
   runApp(
-    ChangeNotifierProvider(
-      create: (context) => LikedProductsProvider(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (context) => LikedProductsProvider()),
+        ChangeNotifierProvider(create: (context) => UserProvider()),
+      ],
       child: const MyApp(),
     ),
   );
@@ -52,6 +62,7 @@ class MyApp extends StatelessWidget {
       builder: (context, langCode, _) {
         return MaterialApp(
           key: ValueKey(langCode),
+          navigatorKey: NotificationService.navigatorKey,
           title: 'Sentient Chess',
           theme: ThemeData(
             colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),

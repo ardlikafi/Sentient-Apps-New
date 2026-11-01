@@ -1,0 +1,581 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
+import 'package:sentient/core/providers/user_provider.dart';
+import 'package:sentient/core/services/firebase_service.dart';
+import 'package:sentient/features/shop/demo_payment_page.dart';
+import 'package:sentient/core/services/simulated_order_service.dart';
+
+const Color kDarkBlue = Color(0xFF000A26);
+const Color kPrimaryBlue = Color(0xFF0F52BA);
+const Color kLightBlue = Color(0xFFA6C6D8);
+const Color kVeryLightBlue = Color(0xFFD6E5F2);
+
+class SubscriptionScreen extends StatefulWidget {
+  const SubscriptionScreen({super.key});
+
+  @override
+  State<SubscriptionScreen> createState() => _SubscriptionScreenState();
+}
+
+class _SubscriptionScreenState extends State<SubscriptionScreen> {
+  bool _isProcessing = false;
+
+  Future<void> _handleSubscriptionPurchase(String planName, String duration, int price) async {
+    if (_isProcessing) return;
+
+    setState(() => _isProcessing = true);
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      final userData = await FirebaseService.getCurrentUser();
+      if (!mounted) return;
+      final userEmail = userData?['email'] ?? user?.email ?? 'member@sentient.id';
+      final userName = userData?['username'] ?? user?.displayName ?? 'Sentient Grandmaster';
+
+      // Navigate to realistic payment gateway page
+      final result = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (context) => DemoPaymentPage(
+            planName: planName,
+            duration: duration,
+            price: price,
+            userEmail: userEmail,
+            userName: userName,
+          ),
+        ),
+      );
+
+      // If payment was successful
+      if (result == true) {
+        // 1. INSTANT ZERO-LATENCY UNLOCK: Notify UserProvider and SimulatedOrderService immediately!
+        if (mounted) {
+          try {
+            Provider.of<UserProvider>(context, listen: false)
+                .setPremiumInstant(true, tier: planName, duration: duration);
+          } catch (_) {}
+        }
+        SimulatedOrderService.togglePremium(true, tier: planName);
+
+        // 2. Persist to Firestore and SharedPreferences asynchronously
+        FirebaseService.updatePremiumStatus(
+          true,
+          tierName: planName,
+          duration: duration,
+        );
+
+        if (mounted) {
+          _showSuccessSnackBar('🎉 Congratulations! $planName ($duration) activated successfully.');
+          setState(() {});
+
+          // Auto return after brief smooth feedback so caller knows subscription succeeded
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (mounted && Navigator.canPop(context)) {
+              Navigator.of(context).pop(true);
+            }
+          });
+        }
+      }
+    } catch (e) {
+      _showErrorSnackBar('Payment error: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isProcessing = false);
+      }
+    }
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  void _showSuccessSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const List<String> benefits = [
+      'Unlimited access to all courses',
+      'Exclusive articles',
+      'Special discounts in the shop',
+    ];
+
+    final isCurrentPremium = SimulatedOrderService.isPremium;
+    final activeTier = SimulatedOrderService.activeTier.toLowerCase();
+
+    return Scaffold(
+      backgroundColor: kVeryLightBlue,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        systemOverlayStyle: SystemUiOverlayStyle.light,
+        leading: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: CircleAvatar(
+            backgroundColor: kPrimaryBlue.withValues(alpha: 0.5),
+            child: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ),
+        ),
+        title: const Text(
+          "Subscription",
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        centerTitle: true,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Color(0xFF000A26),
+                Color(0xFF001759),
+                Color(0xFF00207B),
+              ],
+              stops: [0.0, 0.66, 1.0],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+          ),
+        ),
+      ),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+          child: Column(
+            children: [
+              Image.asset(
+                'assets/images/img_logo.png',
+                height: 80,
+                errorBuilder: (c, e, s) =>
+                const Icon(Icons.workspace_premium, color: kPrimaryBlue, size: 80),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Choose Your Subscription',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: kDarkBlue,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Access all courses, improve faster and play smarter\nupgrade your plan today.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: kDarkBlue.withValues(alpha: 0.7),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: kLightBlue.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  children: [
+                    const Text(
+                      'Available Payment Methods',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: kDarkBlue,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'All payments are processed securely via Flip',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: kDarkBlue,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      alignment: WrapAlignment.center,
+                      children: [
+                        _PaymentMethodIcon(icon: Icons.account_balance_wallet, name: 'GoPay'),
+                        _PaymentMethodIcon(icon: Icons.shopping_bag, name: 'ShopeePay'),
+                        _PaymentMethodIcon(icon: Icons.phone_android, name: 'DANA'),
+                        _PaymentMethodIcon(icon: Icons.phone_iphone, name: 'OVO'),
+                        _PaymentMethodIcon(icon: Icons.qr_code_scanner, name: 'QRIS'),
+                        _PaymentMethodIcon(icon: Icons.account_balance, name: 'Virtual Account'),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              SubscriptionTierCard(
+                iconPath: 'assets/images/ic_pawn.png',
+                tierName: 'Pawn Tier',
+                duration: '1 Month',
+                price: 99000,
+                benefits: benefits,
+                isProcessing: _isProcessing,
+                isCurrentlyActive: isCurrentPremium && activeTier.contains('pawn'),
+                onPurchase: () => _handleSubscriptionPurchase('Pawn Tier', '1 Month', 99000),
+              ),
+              SubscriptionTierCard(
+                iconPath: 'assets/images/ic_knight.png',
+                tierName: 'Knight Tier',
+                duration: '3 Month',
+                price: 269000,
+                benefits: benefits,
+                isProcessing: _isProcessing,
+                isCurrentlyActive: isCurrentPremium && activeTier.contains('knight'),
+                onPurchase: () => _handleSubscriptionPurchase('Knight Tier', '3 Month', 269000),
+              ),
+              SubscriptionTierCard(
+                iconPath: 'assets/images/ic_queen.png',
+                tierName: 'Queen Tier',
+                duration: '6 Month',
+                price: 499000,
+                benefits: benefits,
+                isProcessing: _isProcessing,
+                isCurrentlyActive: isCurrentPremium &&
+                    (activeTier.contains('queen') ||
+                        (!activeTier.contains('pawn') && !activeTier.contains('knight'))),
+                onPurchase: () => _handleSubscriptionPurchase('Queen Tier', '6 Month', 499000),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class SubscriptionTierCard extends StatelessWidget {
+  final String iconPath;
+  final String tierName;
+  final String duration;
+  final int price;
+  final List<String> benefits;
+  final VoidCallback onPurchase;
+  final bool isProcessing;
+  final bool isCurrentlyActive;
+
+  const SubscriptionTierCard({
+    super.key,
+    required this.iconPath,
+    required this.tierName,
+    required this.duration,
+    required this.price,
+    required this.benefits,
+    required this.onPurchase,
+    this.isProcessing = false,
+    this.isCurrentlyActive = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Choose beautiful gradient based on Tier Name
+    final List<Color> gradientColors;
+    final Color textColor;
+    final Color buttonBgColor;
+    final Color buttonTextColor;
+
+    if (tierName.contains('Queen')) {
+      gradientColors = const [Color(0xFFD4AF37), Color(0xFFFFDF00), Color(0xFFAA7C11)]; // Luxury Gold
+      textColor = const Color(0xFF1A1A2E);
+      buttonBgColor = const Color(0xFF1A1A2E);
+      buttonTextColor = const Color(0xFFFFDF00);
+    } else if (tierName.contains('Knight')) {
+      gradientColors = const [Color(0xFFE5E4E2), Color(0xFFB0C4DE), Color(0xFF708090)]; // Platinum Silver
+      textColor = const Color(0xFF000A26);
+      buttonBgColor = const Color(0xFF000A26);
+      buttonTextColor = Colors.white;
+    } else {
+      gradientColors = const [Color(0xFF0F52BA), Color(0xFF00207B), Color(0xFF000A26)]; // Sapphire Blue
+      textColor = Colors.white;
+      buttonBgColor = Colors.white;
+      buttonTextColor = const Color(0xFF0F52BA);
+    }
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 10.0),
+      padding: const EdgeInsets.all(20.0),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: gradientColors,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: gradientColors.first.withValues(alpha: 0.35),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 1. TOP HEADER: Icon + Tier Name + Active Badge
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Image.asset(
+                iconPath,
+                height: 44,
+                width: 44,
+                errorBuilder: (c, e, s) => Icon(Icons.shield, color: textColor, size: 44),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            tierName,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                              color: textColor,
+                              fontFamily: 'Poppins',
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (isCurrentlyActive) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: textColor.withValues(alpha: 0.18),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: textColor.withValues(alpha: 0.3),
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: BoxDecoration(
+                                    color: tierName.contains('Queen') 
+                                        ? const Color(0xFF1A1A2E) 
+                                        : const Color(0xFF10B981),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'ACTIVE',
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w800,
+                                    color: textColor,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      duration,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: textColor.withValues(alpha: 0.8),
+                        fontFamily: 'Poppins',
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          // 2. PRICING & ACTION ROW (Fully responsive on any width)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Rp ${price.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: textColor,
+                      fontFamily: 'Poppins',
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: buttonBgColor,
+                  foregroundColor: buttonTextColor,
+                  padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  elevation: 4,
+                  shadowColor: Colors.black38,
+                ),
+                onPressed: isProcessing ? null : onPurchase,
+                child: isProcessing
+                    ? SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(buttonTextColor),
+                        ),
+                      )
+                    : Text(
+                        isCurrentlyActive ? 'Renew' : 'Buy Now',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          fontFamily: 'Poppins',
+                        ),
+                      ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+          Divider(color: textColor.withValues(alpha: 0.2), height: 1),
+          const SizedBox(height: 14),
+
+          // 3. BENEFITS
+          Text(
+            'Benefit',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              color: textColor,
+              fontFamily: 'Poppins',
+            ),
+          ),
+          const SizedBox(height: 8),
+          ...benefits.map((benefit) => _BenefitItem(text: benefit, color: textColor)),
+        ],
+      ),
+    );
+  }
+}
+
+class _BenefitItem extends StatelessWidget {
+  final String text;
+  final Color color;
+  const _BenefitItem({required this.text, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                color: color.withValues(alpha: 0.9),
+                fontFamily: 'Poppins',
+                fontSize: 13,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PaymentMethodIcon extends StatelessWidget {
+  final IconData icon;
+  final String name;
+
+  const _PaymentMethodIcon({
+    required this.icon,
+    required this.name,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: kPrimaryBlue.withValues(alpha: 0.1),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Icon(
+            icon,
+            color: kPrimaryBlue,
+            size: 24,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          name,
+          style: TextStyle(
+            fontSize: 12,
+            color: kDarkBlue.withValues(alpha: 0.8),
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+}

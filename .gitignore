@@ -52,3 +52,16 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Firebase Admin SDK Private Keys
+*-adminsdk-*.json
+*.keystore
+*.jks
+
+# Node modules
+node_modules/
+**/node_modules/
+
+# Executables
+*.exe
+

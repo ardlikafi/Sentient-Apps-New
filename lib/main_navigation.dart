@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
-import 'home_screen.dart';
-import 'profile_screen.dart';
-import 'chess_menu_screen.dart';
-import 'course_screen.dart';
-import 'shop_screen.dart';
-import 'language_service.dart';
+import 'package:flutter/services.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
+import 'package:sentient/core/providers/user_provider.dart';
+import 'package:sentient/features/home/home_screen.dart';
+import 'package:sentient/features/profile/profile_screen.dart';
+import 'package:sentient/features/chess/chess_menu_screen.dart';
+import 'package:sentient/features/courses/course_screen.dart';
+import 'package:sentient/features/shop/shop_screen.dart';
+import 'package:sentient/core/services/language_service.dart';
+import 'package:sentient/core/services/notification_service.dart';
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
@@ -13,11 +18,19 @@ class MainNavigation extends StatefulWidget {
   State<MainNavigation> createState() => _MainNavigationState();
 }
 
-class _MainNavigationState extends State<MainNavigation> {
+class _MainNavigationState extends State<MainNavigation> with WidgetsBindingObserver {
   int _currentIndex = 0;
   
-  final List<Widget> _screens = [
-    const HomeScreen(),
+  late final List<Widget> _screens = [
+    HomeScreen(
+      onNavigateToTab: (index) {
+        if (mounted) {
+          setState(() {
+            _currentIndex = index;
+          });
+        }
+      },
+    ),
     const CourseScreen(),
     const ChessMenuScreen(),
     const ShopScreen(),
@@ -27,12 +40,45 @@ class _MainNavigationState extends State<MainNavigation> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     LanguageService.languageNotifier.addListener(_onLanguageChanged);
+
+    // Start presence heartbeat, sync FCM token & global notifications listener
+    NotificationService.startPresenceSystem();
+    NotificationService.syncUserFCMToken();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Consume any pending payload from cold start notification tap
+      NotificationService.consumePendingPayload(context);
+
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final uid = userProvider.userData?['id']?.toString() ??
+          FirebaseAuth.instance.currentUser?.uid ?? '';
+      if (uid.isNotEmpty) {
+        NotificationService.startGlobalListeners(uid);
+      }
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      NotificationService.startPresenceSystem();
+      NotificationService.syncUserFCMToken();
+      NotificationService.consumePendingPayload(context);
+    } else if (state == AppLifecycleState.paused ||
+               state == AppLifecycleState.inactive ||
+               state == AppLifecycleState.detached) {
+      NotificationService.stopPresenceSystem();
+    }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     LanguageService.languageNotifier.removeListener(_onLanguageChanged);
+    NotificationService.stopPresenceSystem();
     super.dispose();
   }
 
@@ -42,16 +88,76 @@ class _MainNavigationState extends State<MainNavigation> {
     }
   }
 
+  DateTime? _lastBackPressTime;
+
+  void _handleBackPress() {
+    // 1. Jika sedang di tab selain Beranda (Courses, Chess, Shop, Profile), kembali ke Beranda (Home)
+    if (_currentIndex != 0) {
+      setState(() {
+        _currentIndex = 0;
+      });
+      return;
+    }
+
+    // 2. Jika sudah di Beranda (Home), minta konfirmasi klik back 2 kali dalam 2 detik untuk keluar
+    final now = DateTime.now();
+    if (_lastBackPressTime == null ||
+        now.difference(_lastBackPressTime!) > const Duration(seconds: 2)) {
+      _lastBackPressTime = now;
+
+      ScaffoldMessenger.of(context).removeCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.only(bottom: 24, left: 36, right: 36),
+          backgroundColor: const Color(0xFF001759),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+            side: const BorderSide(color: Colors.amber, width: 1.2),
+          ),
+          duration: const Duration(seconds: 2),
+          content: const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.exit_to_app_rounded, color: Colors.amber, size: 20),
+              SizedBox(width: 10),
+              Text(
+                'Press back again to exit',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontFamily: 'Poppins',
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+      return;
+    }
+
+    // Klik back kedua kali dalam waktu <= 2 detik: keluar dari aplikasi secara aman
+    ScaffoldMessenger.of(context).removeCurrentSnackBar();
+    SystemNavigator.pop();
+  }
+
   @override
   Widget build(BuildContext context) {
     final lang = LanguageService.languageNotifier.value;
     
-    return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
-      ),
-      bottomNavigationBar: Container(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _handleBackPress();
+      },
+      child: Scaffold(
+        body: IndexedStack(
+          index: _currentIndex,
+          children: _screens,
+        ),
+        bottomNavigationBar: Container(
         decoration: BoxDecoration(
           gradient: const LinearGradient(
             begin: Alignment.topCenter,
@@ -63,7 +169,7 @@ class _MainNavigationState extends State<MainNavigation> {
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.3),
+              color: Colors.black.withValues(alpha: 0.3),
               blurRadius: 10,
               offset: const Offset(0, -2),
             ),
@@ -91,7 +197,7 @@ class _MainNavigationState extends State<MainNavigation> {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(8),
                   color: _currentIndex == 0 
-                      ? Colors.amber.withOpacity(0.2) 
+                      ? Colors.amber.withValues(alpha: 0.2) 
                       : Colors.transparent,
                 ),
                 child: const Icon(Icons.home),
@@ -104,7 +210,7 @@ class _MainNavigationState extends State<MainNavigation> {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(8),
                   color: _currentIndex == 1 
-                      ? Colors.amber.withOpacity(0.2) 
+                      ? Colors.amber.withValues(alpha: 0.2) 
                       : Colors.transparent,
                 ),
                 child: const Icon(Icons.school),
@@ -117,7 +223,7 @@ class _MainNavigationState extends State<MainNavigation> {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(8),
                   color: _currentIndex == 2 
-                      ? Colors.amber.withOpacity(0.2) 
+                      ? Colors.amber.withValues(alpha: 0.2) 
                       : Colors.transparent,
                 ),
                 child: const Icon(Icons.extension),
@@ -130,7 +236,7 @@ class _MainNavigationState extends State<MainNavigation> {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(8),
                   color: _currentIndex == 3 
-                      ? Colors.amber.withOpacity(0.2) 
+                      ? Colors.amber.withValues(alpha: 0.2) 
                       : Colors.transparent,
                 ),
                 child: const Icon(Icons.shopping_bag),
@@ -143,7 +249,7 @@ class _MainNavigationState extends State<MainNavigation> {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(8),
                   color: _currentIndex == 4 
-                      ? Colors.amber.withOpacity(0.2) 
+                      ? Colors.amber.withValues(alpha: 0.2) 
                       : Colors.transparent,
                 ),
                 child: const Icon(Icons.person),
@@ -153,6 +259,7 @@ class _MainNavigationState extends State<MainNavigation> {
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 }

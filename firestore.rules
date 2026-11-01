@@ -1,25 +1,60 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow read/write access to users collection
+    
+    // 1. Users: Dibuka read publik agar pencarian pemain di lobby, cek keunikan username,
+    // dan login menggunakan username dapat membaca data tanpa error PERMISSION_DENIED.
+    // Keamanan edit profil tetap diamankan: hanya pemilik akun yang berhak mengedit datanya sendiri.
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == userId;
       allow create: if request.auth != null;
     }
+
+    // 1b. Pendaftaran akun yang belum verifikasi email
+    match /pending_registrations/{userId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
     
-    // Allow read access to courses
+    // 2. Tantangan catur realtime (Kirim, Terima, Tolak tantangan)
+    match /chess_challenges/{challengeId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // 3. Match pertandingan catur online
+    match /chess_matches/{matchId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // 4. Chat antar pemain & pesan realtime
+    match /chat_rooms/{roomId} {
+      allow read, write: if request.auth != null;
+      match /messages/{messageId} {
+        allow read, write: if request.auth != null;
+      }
+    }
+    
+    // 5. Public courses (Bawaan Anda sebelumnya)
     match /courses/{courseId} {
       allow read: if true;
       allow write: if request.auth != null;
     }
     
-    // Allow read/write access to enrollments
+    // 6. Course enrollments (Bawaan Anda sebelumnya)
     match /enrollments/{enrollmentId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if request.auth != null && 
+        enrollmentId.matches(request.auth.uid + '.*');
     }
     
-    // Allow read access to products
+    // 7. Public products (Bawaan Anda sebelumnya)
     match /products/{productId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    
+    // 8. Public articles (Bawaan Anda sebelumnya)
+    match /articles/{articleId} {
       allow read: if true;
       allow write: if request.auth != null;
     }
