@@ -1496,11 +1496,15 @@ class _CourseCardState extends State<CourseCard> {
                       children: [
                         const Icon(Icons.star, color: Colors.amber, size: 15),
                         const SizedBox(width: 4),
-                        Text(
-                          "${widget.course['rating']} (${widget.course['reviewCount']})",
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: kDarkBlue.withOpacity(0.7),
+                        Expanded(
+                          child: Text(
+                            "${widget.course['rating']} (${widget.course['reviewCount']})",
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: kDarkBlue.withOpacity(0.7),
+                            ),
                           ),
                         ),
                       ],

@@ -214,14 +214,83 @@ class _CheckoutBottomSheetState extends State<CheckoutBottomSheet> {
   final _addressController = TextEditingController();
   final _cityController = TextEditingController();
 
-  String _selectedCourier = 'JNE Express';
+  String _selectedCourier = 'SiCepat Reguler';
   String _selectedPayment = 'BCA Virtual Account';
 
-  final Map<String, int> _couriers = {
-    'JNE Express': 15000,
-    'J&T Express': 18000,
-    'SiCepat Reguler': 12000,
-  };
+  // 📦 Kalkulator Ongkir Dinamis dari Sidoarjo berdasarkan Kota Tujuan
+  Map<String, int> get _couriers {
+    final city = _cityController.text.trim().toLowerCase();
+
+    if (city.contains('surabaya') ||
+        city.contains('sidoarjo') ||
+        city.contains('gresik')) {
+      return {
+        'JNE Express (Lokal)': 9000,
+        'J&T Express (Lokal)': 8000,
+        'SiCepat Reguler': 8500,
+      };
+    } else if (city.contains('malang') ||
+        city.contains('kediri') ||
+        city.contains('jember') ||
+        city.contains('madiun') ||
+        city.contains('blitar') ||
+        city.contains('banyuwangi')) {
+      return {
+        'J&T Express (Jatim)': 11000,
+        'JNE Express (Jatim)': 12000,
+        'SiCepat BEST (Kilat)': 18000,
+      };
+    } else if (city.contains('jakarta') ||
+        city.contains('bogor') ||
+        city.contains('depok') ||
+        city.contains('tangerang') ||
+        city.contains('bekasi') ||
+        city.contains('bandung') ||
+        city.contains('semarang') ||
+        city.contains('solo') ||
+        city.contains('yogyakarta')) {
+      return {
+        'SiCepat Reguler': 14000,
+        'J&T Express': 15000,
+        'JNE Express': 16000,
+        'JNE YES (Besok Sampai)': 28000,
+      };
+    } else if (city.contains('bali') ||
+        city.contains('denpasar') ||
+        city.contains('mataram')) {
+      return {
+        'J&T Express': 20000,
+        'SiCepat Reguler': 21000,
+        'JNE Express': 22000,
+      };
+    } else if (city.contains('medan') ||
+        city.contains('palembang') ||
+        city.contains('lampung') ||
+        city.contains('balikpapan') ||
+        city.contains('banjarmasin') ||
+        city.contains('makassar') ||
+        city.contains('manado')) {
+      return {
+        'J&T Express': 32000,
+        'SiCepat Reguler': 34000,
+        'JNE Express': 35000,
+      };
+    } else if (city.contains('papua') ||
+        city.contains('jayapura') ||
+        city.contains('ambon')) {
+      return {
+        'J&T Cargo': 50000,
+        'JNE Express': 65000,
+      };
+    } else {
+      // Tarif Nasional Default
+      return {
+        'SiCepat Reguler': 15000,
+        'J&T Express': 16000,
+        'JNE Express': 18000,
+      };
+    }
+  }
 
   final List<String> _payments = [
     'BCA Virtual Account',
@@ -229,6 +298,22 @@ class _CheckoutBottomSheetState extends State<CheckoutBottomSheet> {
     'GoPay E-Wallet',
     'OVO Cash',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedCourier = _couriers.keys.first;
+    // 🚚 Otomatis hitung ulang ongkir saat user mengetik kota tujuan
+    _cityController.addListener(() {
+      if (mounted) {
+        setState(() {
+          if (!_couriers.containsKey(_selectedCourier)) {
+            _selectedCourier = _couriers.keys.first;
+          }
+        });
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -240,7 +325,9 @@ class _CheckoutBottomSheetState extends State<CheckoutBottomSheet> {
   }
 
   int get _itemPrice => widget.product['price'] as int? ?? 0;
-  int get _shippingCost => _couriers[_selectedCourier] ?? 15000;
+  int get _shippingCost =>
+      _couriers[_selectedCourier] ??
+      (_couriers.values.isNotEmpty ? _couriers.values.first : 15000);
   int get _adminFee => 2000;
   int get _totalAmount => _itemPrice + _shippingCost + _adminFee;
 
@@ -446,7 +533,9 @@ class _CheckoutBottomSheetState extends State<CheckoutBottomSheet> {
                       ),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
-                          value: _selectedCourier,
+                          value: _couriers.containsKey(_selectedCourier)
+                              ? _selectedCourier
+                              : _couriers.keys.first,
                           isExpanded: true,
                           icon: const Icon(Icons.arrow_drop_down, color: kPrimaryBlue),
                           items: _couriers.keys.map((String courier) {

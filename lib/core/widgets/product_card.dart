@@ -19,7 +19,8 @@ class ProductCard extends StatelessWidget {
 
     return Consumer<LikedProductsProvider>(
       builder: (context, likedProvider, child) {
-        final bool isLiked = likedProvider.isLiked(product['id']!);
+        final String productId = product['id'].toString();
+        final bool isLiked = likedProvider.isLiked(productId);
 
         return GestureDetector(
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ProductDetailScreen(product: product))),
@@ -34,26 +35,72 @@ class ProductCard extends StatelessWidget {
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                          Text(product['name']!, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: kVeryLightBlue), maxLines: 2, overflow: TextOverflow.ellipsis),
-                          const SizedBox(height: 2),
-                          Text(product['subtitle'] ?? 'Item', style: TextStyle(fontSize: 11, color: kVeryLightBlue.withOpacity(0.8)), maxLines: 1, overflow: TextOverflow.ellipsis),
-                        ]),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween, crossAxisAlignment: CrossAxisAlignment.center,
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text("Rp. ${formatCurrency.format(product['price'])}", style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white)),
+                            Text(
+                              product['name'] ?? '',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontFamily: 'Poppins',
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: kVeryLightBlue,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              product['subtitle'] ?? 'Item',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontFamily: 'Poppins',
+                                fontSize: 11,
+                                color: kVeryLightBlue.withOpacity(0.8),
+                              ),
+                            ),
+                          ],
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                "Rp. ${formatCurrency.format(product['price'] ?? 0)}",
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontFamily: 'Poppins',
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
                             InkWell(
-                              onTap: () => likedProvider.toggleLike(product['id']!),
+                              onTap: () => likedProvider.toggleLike(productId),
                               customBorder: const CircleBorder(),
                               child: Container(
                                 padding: const EdgeInsets.all(5),
-                                decoration: BoxDecoration(color: kVeryLightBlue.withOpacity(0.2), shape: BoxShape.circle),
+                                decoration: BoxDecoration(
+                                  color: kVeryLightBlue.withOpacity(0.2),
+                                  shape: BoxShape.circle,
+                                ),
                                 child: Icon(
-                                  isLiked ? Icons.favorite : Icons.favorite_border,
-                                  color: isLiked ? Colors.redAccent : kVeryLightBlue,
+                                  isLiked
+                                      ? Icons.favorite
+                                      : Icons.favorite_border,
+                                  color:
+                                      isLiked
+                                          ? Colors.redAccent
+                                          : kVeryLightBlue,
                                   size: 18,
                                 ),
                               ),

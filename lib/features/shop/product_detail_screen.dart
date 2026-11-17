@@ -1,6 +1,8 @@
 // File: lib/product_detail_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:sentient/core/providers/liked_products_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:sentient/core/widgets/simulated_order_widgets.dart';
 
@@ -14,7 +16,6 @@ class ProductDetailScreen extends StatefulWidget {
 }
 
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
-  bool _isLiked = false;
   String? _selectedSize;
   final List<String> _sizes = ['25 cm', '50 cm', '75 cm'];
 
@@ -131,35 +132,38 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               ],
                             ),
                           ),
-                          GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _isLiked = !_isLiked;
-                              });
-                            },
-                            child: Container(
-                              margin: const EdgeInsets.only(left: 16),
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.grey.withOpacity(0.2),
-                                    spreadRadius: 1,
-                                    blurRadius: 5,
+                          Consumer<LikedProductsProvider>(
+                            builder: (context, likedProvider, child) {
+                              final String productId = widget.product['id'].toString();
+                              final bool isLiked = likedProvider.isLiked(productId);
+
+                              return GestureDetector(
+                                onTap: () => likedProvider.toggleLike(productId),
+                                child: Container(
+                                  margin: const EdgeInsets.only(left: 16),
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.grey.withOpacity(0.2),
+                                        spreadRadius: 1,
+                                        blurRadius: 5,
+                                      ),
+                                    ],
                                   ),
-                                ],
-                              ),
-                              child: Icon(
-                                _isLiked
-                                    ? Icons.favorite
-                                    : Icons.favorite_border,
-                                color:
-                                    _isLiked ? Colors.redAccent : Colors.grey,
-                                size: 28,
-                              ),
-                            ),
+                                  child: Icon(
+                                    isLiked
+                                        ? Icons.favorite
+                                        : Icons.favorite_border,
+                                    color:
+                                        isLiked ? Colors.redAccent : Colors.grey,
+                                    size: 28,
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                         ],
                       ),

@@ -27,7 +27,7 @@ class LikedProductsScreen extends StatelessWidget {
       body: Consumer<LikedProductsProvider>(
         builder: (context, likedProvider, child) {
           final likedProducts = allMockProducts.where((product) {
-            return likedProvider.isLiked(product['id']!);
+            return likedProvider.isLiked(product['id'].toString());
           }).toList();
 
           if (likedProducts.isEmpty) {

@@ -411,9 +411,9 @@ class FirebaseService {
     if (userId == null) return;
 
     final userDocRef = _firestore.collection('users').doc(userId);
-    await userDocRef.update({
-      'liked_products': FieldValue.arrayUnion([productId]),
-    });
+    await userDocRef.set({
+      'liked_products': FieldValue.arrayUnion([productId.toString()]),
+    }, SetOptions(merge: true));
   }
 
   static Future<void> unlikeProduct(String productId) async {
@@ -421,9 +421,9 @@ class FirebaseService {
     if (userId == null) return;
 
     final userDocRef = _firestore.collection('users').doc(userId);
-    await userDocRef.update({
-      'liked_products': FieldValue.arrayRemove([productId]),
-    });
+    await userDocRef.set({
+      'liked_products': FieldValue.arrayRemove([productId.toString()]),
+    }, SetOptions(merge: true));
   }
 
   static Future<Map<String, dynamic>?> getCurrentUser() async {
