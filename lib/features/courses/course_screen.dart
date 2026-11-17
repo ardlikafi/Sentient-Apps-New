@@ -42,10 +42,17 @@ class _CourseScreenState extends State<CourseScreen> {
 
   final Random _random = Random();
 
-  // Data placeholder untuk statistik course
-  final int _savedCourses = 8;
-  final int _finishedCourses = 19;
-  final int _inProgressCourses = 4;
+  // Data statistik dinamis dari database
+  int _savedCourses = 0;
+  int _finishedCourses = 0;
+  int _inProgressCourses = 0;
+
+  List<String> _savedCourseIds = [];
+  List<String> _finishedCourseIds = [];
+  List<String> _inProgressCourseIds = [];
+
+  // Filter statistik aktif: null (semua), 'Save', 'Finished', atau 'In Progress'
+  String? _activeStatFilter;
 
   List<Map<String, dynamic>> _allCourses = [];
   bool _isLoadingCourses = true;
@@ -56,11 +63,28 @@ class _CourseScreenState extends State<CourseScreen> {
     super.initState();
     _changeQuote();
     _fetchCourses();
+    _fetchUserStats();
     _orderSubscription = SimulatedOrderService.orderStream.listen((_) {
       if (mounted) {
         setState(() {});
       }
     });
+  }
+
+  Future<void> _fetchUserStats() async {
+    final stats = await FirebaseService.getUserCourseStats();
+    if (mounted) {
+      setState(() {
+        _savedCourseIds = List<String>.from(stats['saved_ids'] ?? []);
+        _inProgressCourseIds =
+            List<String>.from(stats['in_progress_ids'] ?? []);
+        _finishedCourseIds = List<String>.from(stats['finished_ids'] ?? []);
+
+        _savedCourses = _savedCourseIds.length;
+        _inProgressCourses = _inProgressCourseIds.length;
+        _finishedCourses = _finishedCourseIds.length;
+      });
+    }
   }
 
   Future<void> _fetchCourses() async {
@@ -72,12 +96,35 @@ class _CourseScreenState extends State<CourseScreen> {
           _isLoadingCourses = false;
         });
       }
+      await _fetchUserStats();
     } catch (e) {
       debugPrint('Error fetching courses in CourseScreen: $e');
       if (mounted) {
         setState(() => _isLoadingCourses = false);
       }
     }
+  }
+
+  List<Map<String, dynamic>> _getFilteredCoursesByStat() {
+    if (_activeStatFilter == null) return _allCourses;
+
+    if (_activeStatFilter == "Save") {
+      return _allCourses.where((c) {
+        final id = c['id']?.toString();
+        return id != null && _savedCourseIds.contains(id);
+      }).toList();
+    } else if (_activeStatFilter == "Finished") {
+      return _allCourses.where((c) {
+        final id = c['id']?.toString();
+        return id != null && _finishedCourseIds.contains(id);
+      }).toList();
+    } else if (_activeStatFilter == "In Progress") {
+      return _allCourses.where((c) {
+        final id = c['id']?.toString();
+        return id != null && _inProgressCourseIds.contains(id);
+      }).toList();
+    }
+    return _allCourses;
   }
 
   @override
@@ -108,10 +155,13 @@ class _CourseScreenState extends State<CourseScreen> {
               RecommendationSection(
                 courses: _allCourses,
                 isLoading: _isLoadingCourses,
+                onStatsChanged: _fetchUserStats,
               ),
               CourseFilterAndListSection(
-                courses: _allCourses,
+                courses: _getFilteredCoursesByStat(),
                 isLoading: _isLoadingCourses,
+                savedCourseIds: _savedCourseIds,
+                onStatsChanged: _fetchUserStats,
               ),
               const Padding(padding: EdgeInsets.all(16.0)),
             ],
@@ -296,18 +346,39 @@ class _CourseScreenState extends State<CourseScreen> {
             iconPath: "assets/icons/ic_save.png",
             count: _savedCourses,
             label: "Save",
+            isSelected: _activeStatFilter == "Save",
+            onTap: () {
+              setState(() {
+                _activeStatFilter =
+                    (_activeStatFilter == "Save") ? null : "Save";
+              });
+            },
           ),
           _buildStatItem(
             context,
             iconPath: "assets/icons/ic_finished.png",
             count: _finishedCourses,
             label: "Finished",
+            isSelected: _activeStatFilter == "Finished",
+            onTap: () {
+              setState(() {
+                _activeStatFilter =
+                    (_activeStatFilter == "Finished") ? null : "Finished";
+              });
+            },
           ),
           _buildStatItem(
             context,
             iconPath: "assets/icons/ic_progress.png",
             count: _inProgressCourses,
             label: "In Progress",
+            isSelected: _activeStatFilter == "In Progress",
+            onTap: () {
+              setState(() {
+                _activeStatFilter =
+                    (_activeStatFilter == "In Progress") ? null : "In Progress";
+              });
+            },
           ),
         ],
       ),
@@ -319,47 +390,66 @@ class _CourseScreenState extends State<CourseScreen> {
     required String iconPath,
     required int count,
     required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
   }) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        CircleAvatar(
-          radius: 30,
-          backgroundColor: kLightBlue.withOpacity(0.4),
-          child: Padding(
-            padding: const EdgeInsets.all(10.0),
-            child: Image.asset(
-              iconPath,
-              errorBuilder: (context, error, stackTrace) {
-                return const Icon(
-                  Icons.bookmark_border,
-                  color: kPrimaryBlue,
-                  size: 28,
-                );
-              },
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color:
+              isSelected ? kPrimaryBlue.withOpacity(0.12) : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+          border:
+              isSelected ? Border.all(color: kPrimaryBlue, width: 1.5) : null,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            CircleAvatar(
+              radius: 30,
+              backgroundColor:
+                  isSelected ? kPrimaryBlue : kLightBlue.withOpacity(0.4),
+              child: Padding(
+                padding: const EdgeInsets.all(10.0),
+                child: Image.asset(
+                  iconPath,
+                  color: isSelected ? Colors.white : null,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Icon(
+                      Icons.bookmark_border,
+                      color: isSelected ? Colors.white : kPrimaryBlue,
+                      size: 28,
+                    );
+                  },
+                ),
+              ),
             ),
-          ),
+            const SizedBox(height: 8),
+            Text(
+              count.toString(),
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: isSelected ? kPrimaryBlue : kDarkBlue,
+                fontFamily: 'Poppins',
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                color: isSelected ? kPrimaryBlue : kDarkBlue.withOpacity(0.7),
+                fontFamily: 'Poppins',
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 8),
-        Text(
-          count.toString(),
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: kDarkBlue,
-            fontFamily: 'Poppins',
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            color: kDarkBlue.withOpacity(0.7),
-            fontFamily: 'Poppins',
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
@@ -367,11 +457,13 @@ class _CourseScreenState extends State<CourseScreen> {
 class RecommendationSection extends StatefulWidget {
   final List<Map<String, dynamic>> courses;
   final bool isLoading;
+  final VoidCallback? onStatsChanged;
 
   const RecommendationSection({
     super.key,
     required this.courses,
     this.isLoading = false,
+    this.onStatsChanged,
   });
 
   @override
@@ -520,7 +612,10 @@ class _RecommendationSectionState extends State<RecommendationSection> {
             ),
           ),
         );
-        if (mounted) setState(() {});
+        if (mounted) {
+          setState(() {});
+          widget.onStatsChanged?.call();
+        }
       },
       child: Container(
         padding: const EdgeInsets.all(12.0),
@@ -679,7 +774,10 @@ class _RecommendationSectionState extends State<RecommendationSection> {
                           ),
                         ),
                       );
-                      if (mounted) setState(() {});
+                      if (mounted) {
+          setState(() {});
+          widget.onStatsChanged?.call();
+        }
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: kVeryLightBlue,
@@ -729,11 +827,15 @@ class _RecommendationSectionState extends State<RecommendationSection> {
 class CourseFilterAndListSection extends StatefulWidget {
   final List<Map<String, dynamic>> courses;
   final bool isLoading;
+  final List<String> savedCourseIds;
+  final VoidCallback? onStatsChanged;
 
   const CourseFilterAndListSection({
     super.key,
     required this.courses,
     this.isLoading = false,
+    this.savedCourseIds = const [],
+    this.onStatsChanged,
   });
 
   @override
@@ -766,7 +868,8 @@ class _CourseFilterAndListSectionState
   @override
   void didUpdateWidget(covariant CourseFilterAndListSection oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.courses != widget.courses) {
+    if (oldWidget.courses != widget.courses ||
+        oldWidget.savedCourseIds != widget.savedCourseIds) {
       _applyFilters();
     }
   }
@@ -1062,7 +1165,12 @@ class _CourseFilterAndListSectionState
               itemCount: _filteredCourses.length,
               itemBuilder: (context, index) {
                 final course = _filteredCourses[index];
-                return CourseCard(course: course);
+                return CourseCard(
+                  course: course,
+                  isSaved: widget.savedCourseIds
+                      .contains(course['id']?.toString()),
+                  onStatsChanged: widget.onStatsChanged,
+                );
               },
             ),
         ],
@@ -1073,7 +1181,15 @@ class _CourseFilterAndListSectionState
 
 class CourseCard extends StatefulWidget {
   final Map<String, dynamic> course;
-  const CourseCard({super.key, required this.course});
+  final bool isSaved;
+  final VoidCallback? onStatsChanged;
+
+  const CourseCard({
+    super.key,
+    required this.course,
+    this.isSaved = false,
+    this.onStatsChanged,
+  });
 
   @override
   State<CourseCard> createState() => _CourseCardState();
@@ -1127,7 +1243,10 @@ class _CourseCardState extends State<CourseCard> {
               ),
           ),
         );
-        if (mounted) setState(() {});
+        if (mounted) {
+          setState(() {});
+          widget.onStatsChanged?.call();
+        }
       },
       child: Container(
         decoration: BoxDecoration(
@@ -1260,6 +1379,55 @@ class _CourseCardState extends State<CourseCard> {
                         ),
                       ),
                     ),
+                  // Tombol Bookmark Kursus
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    child: GestureDetector(
+                      onTap: () async {
+                        final courseId = widget.course['id']?.toString() ?? '';
+                        if (courseId.isEmpty) return;
+                        final nowSaved =
+                            await FirebaseService.toggleSaveCourse(courseId);
+                        widget.onStatsChanged?.call();
+                        if (context.mounted) {
+                          try {
+                            Provider.of<UserProvider>(context, listen: false)
+                                .refreshUser();
+                          } catch (_) {}
+                        }
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                nowSaved
+                                    ? 'Kursus berhasil disimpan!'
+                                    : 'Kursus dihapus dari bookmark.',
+                                style: const TextStyle(fontFamily: 'Poppins'),
+                              ),
+                              duration: const Duration(seconds: 1),
+                              backgroundColor:
+                                  nowSaved ? kPrimaryBlue : Colors.grey[800],
+                            ),
+                          );
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.55),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          widget.isSaved
+                              ? Icons.bookmark
+                              : Icons.bookmark_border,
+                          color: Colors.amberAccent,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),

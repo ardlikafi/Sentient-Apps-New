@@ -7,6 +7,7 @@ import 'package:video_player/video_player.dart';
 import 'package:sentient/core/services/youtube_stream_service.dart';
 import 'package:sentient/core/services/simulated_order_service.dart';
 import 'package:sentient/core/widgets/simulated_order_widgets.dart';
+import 'package:sentient/core/services/firebase_service.dart';
 
 const Color kDarkBlue = Color(0xFF000A26);
 const Color kPrimaryBlue = Color(0xFF0F52BA);
@@ -53,6 +54,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
   int _activeLessonIndex = -1; // -1 for main course video, 0..n for lessons
   bool _hasBought = false;
   bool _isBookmarked = false;
+  bool _isSaved = false;
 
   // Custom Controls State
   bool _showControls = true;
@@ -60,6 +62,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
   Duration _currentPosition = Duration.zero;
   Duration _totalDuration = Duration.zero;
   bool _isPlaybackRunning = true;
+  bool _isCourseCompleted = false;
   StreamSubscription? _orderSubscription;
 
   bool get _isAccountPremium {
@@ -75,11 +78,53 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
   void initState() {
     super.initState();
     _initVideoId();
+    _checkSavedStatus();
     _orderSubscription = SimulatedOrderService.orderStream.listen((_) {
       if (mounted) {
         setState(() {});
       }
     });
+  }
+
+  Future<void> _checkSavedStatus() async {
+    final courseId = widget.course['id']?.toString() ?? '';
+    if (courseId.isEmpty) return;
+
+    final stats = await FirebaseService.getUserCourseStats();
+    final savedIds = List<String>.from(stats['saved_ids'] ?? []);
+
+    if (mounted) {
+      setState(() {
+        _isSaved = savedIds.contains(courseId);
+        _isBookmarked = _isSaved;
+      });
+    }
+  }
+
+  Future<void> _toggleBookmark() async {
+    final courseId = widget.course['id']?.toString() ?? '';
+    if (courseId.isEmpty) return;
+
+    final nowSaved = await FirebaseService.toggleSaveCourse(courseId);
+    if (mounted) {
+      setState(() {
+        _isSaved = nowSaved;
+        _isBookmarked = nowSaved;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            nowSaved
+                ? 'Kursus berhasil disimpan!'
+                : 'Kursus dihapus dari bookmark.',
+            style: const TextStyle(fontFamily: 'Poppins'),
+          ),
+          duration: const Duration(seconds: 1),
+          backgroundColor:
+              nowSaved ? const Color(0xFF0F52BA) : Colors.grey[800],
+        ),
+      );
+    }
   }
 
   void _initVideoId() {
@@ -122,6 +167,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
       _isPlaying = true;
       _isLoadingStream = true;
       _showControls = true;
+      _isCourseCompleted = false;
       _currentPosition = Duration.zero;
       _totalDuration = Duration.zero;
     });
@@ -154,6 +200,12 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
       controller.addListener(_onVideoControllerUpdate);
       await controller.play();
 
+      // 🎬 OTOMATIS CATAT SEBAGAI IN PROGRESS DI DATABASE
+      final courseId = widget.course['id']?.toString() ?? '';
+      if (courseId.isNotEmpty) {
+        FirebaseService.enrollInCourse(courseId);
+      }
+
       setState(() {
         _videoController = controller;
         _isLoadingStream = false;
@@ -185,6 +237,17 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
       _totalDuration = val.duration;
       _isPlaybackRunning = val.isPlaying;
     });
+
+    // 🏆 JIKA VIDEO DITONTON SAMPAI HABIS -> PINDAH KE FINISHED
+    if (!_isCourseCompleted &&
+        val.position >= val.duration &&
+        val.duration > const Duration(seconds: 5)) {
+      _isCourseCompleted = true;
+      final courseId = widget.course['id']?.toString() ?? '';
+      if (courseId.isNotEmpty) {
+        FirebaseService.completeCourse(courseId);
+      }
+    }
   }
 
   void _startHideTimer() {
@@ -878,26 +941,19 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
         centerTitle: true,
         actions: [
           Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: CircleAvatar(
-              backgroundColor: kPrimaryBlue.withValues(alpha: 0.5),
-              child: IconButton(
-                icon: Icon(
-                  _isBookmarked ? Icons.bookmark : Icons.bookmark_border,
-                  color: Colors.white,
-                  size: 20,
+            padding: const EdgeInsets.only(right: 16.0),
+            child: GestureDetector(
+              onTap: _toggleBookmark, // ✅ Panggil fungsi toggle
+              child: CircleAvatar(
+                radius: 20,
+                backgroundColor: _isSaved
+                    ? Colors.amber.withValues(alpha: 0.25)
+                    : Colors.white.withValues(alpha: 0.15),
+                child: Icon(
+                  _isSaved ? Icons.bookmark : Icons.bookmark_border_rounded,
+                  color: _isSaved ? Colors.amberAccent : Colors.white,
+                  size: 22,
                 ),
-                onPressed: () {
-                  setState(() {
-                    _isBookmarked = !_isBookmarked;
-                  });
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(_isBookmarked ? 'Saved to bookmarks' : 'Removed from bookmarks'),
-                      duration: const Duration(seconds: 1),
-                    ),
-                  );
-                },
               ),
             ),
           ),

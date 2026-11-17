@@ -187,6 +187,21 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen>
     }
   }
 
+  Future<void> _signOutOnly() async {
+    _checkTimer?.cancel();
+    _cooldownTimer?.cancel();
+
+    try {
+      await FirebaseAuth.instance.signOut();
+    } catch (_) {}
+
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (context) => const LoginScreen()),
+      (route) => false,
+    );
+  }
+
   Future<void> _cancelAndDiscardRegistration() async {
     _checkTimer?.cancel();
     _cooldownTimer?.cancel();
@@ -215,28 +230,58 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen>
         backgroundColor: const Color(0xFF001759),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text(
-          'Cancel Registration?',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontFamily: 'Poppins'),
+          'Email Verification',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontFamily: 'Poppins',
+          ),
         ),
         content: const Text(
-          'Since this email has not been verified, leaving now will cancel and discard this uncompleted registration.',
-          style: TextStyle(color: Colors.white70, fontFamily: 'Poppins', fontSize: 14),
+          'Your email is not verified yet. You can stay and verify, log out, or discard this registration to use a different email/username.',
+          style: TextStyle(
+            color: Colors.white70,
+            fontFamily: 'Poppins',
+            fontSize: 13,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Stay & Verify', style: TextStyle(color: Colors.white70, fontFamily: 'Poppins')),
+            child: const Text(
+              'Stay & Verify',
+              style: TextStyle(color: Colors.white70, fontFamily: 'Poppins'),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _signOutOnly();
+            },
+            child: const Text(
+              'Log Out',
+              style: TextStyle(color: Colors.amber, fontFamily: 'Poppins'),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.redAccent,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
             onPressed: () {
               Navigator.pop(context);
               _cancelAndDiscardRegistration();
             },
-            child: const Text('Discard', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontFamily: 'Poppins')),
+            child: const Text(
+              'Discard',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontFamily: 'Poppins',
+              ),
+            ),
           ),
         ],
       ),

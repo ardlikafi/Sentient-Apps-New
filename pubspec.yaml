@@ -44,7 +44,7 @@ dependencies:
   google_sign_in: ^6.2.1
   
   # Existing Dependencies
-  http: ^1.4.0
+  http: ^1.6.0
   shared_preferences: ^2.2.2
   image_picker: ^1.1.2
   path_provider: ^2.1.5

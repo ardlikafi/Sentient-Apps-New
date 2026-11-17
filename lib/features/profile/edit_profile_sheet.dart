@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:sentient/core/services/firebase_service.dart';
 import 'package:provider/provider.dart';
 import 'package:sentient/core/providers/user_provider.dart';
@@ -40,7 +41,8 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
       _applyUserData(widget.initialUserData!);
     } else {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        final cached = Provider.of<UserProvider>(context, listen: false).userData;
+        final cached =
+            Provider.of<UserProvider>(context, listen: false).userData;
         if (cached != null && mounted) {
           setState(() {
             _applyUserData(cached);
@@ -101,7 +103,10 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to pick image: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Failed to pick image: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -126,19 +131,30 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
     final newUsername = _usernameController.text.trim();
     if (newUsername.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Username cannot be empty.'), backgroundColor: Colors.red),
+        const SnackBar(
+          content: Text('Username cannot be empty.'),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
     if (newUsername.length < 3) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Username must be at least 3 characters.'), backgroundColor: Colors.red),
+        const SnackBar(
+          content: Text('Username must be at least 3 characters.'),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
     if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(newUsername)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Username can only contain letters, numbers, and underscores (_).'), backgroundColor: Colors.red),
+        const SnackBar(
+          content: Text(
+            'Username can only contain letters, numbers, and underscores (_).',
+          ),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
@@ -150,13 +166,23 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
     try {
       // 1. Validasi keunikan username jika diubah
       if (newUsername != (_currentUsername ?? '')) {
-        final isTaken = await FirebaseService.isUsernameTaken(
+        final currentUid =
+            FirebaseAuth.instance.currentUser?.uid ??
+            FirebaseService.getCurrentUserId();
+        final isAvailable = await FirebaseService.isUsernameAvailable(
           newUsername,
-          excludeUserId: FirebaseService.getCurrentUserId(),
+          excludeUid: currentUid,
         );
-        if (isTaken) {
-          success = false;
-          errorMessage = 'Username "$newUsername" is already taken by another user.';
+        if (!isAvailable) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Username sudah dipakai orang lain!'),
+                backgroundColor: Colors.redAccent,
+              ),
+            );
+          }
+          return;
         }
       }
 
@@ -168,7 +194,9 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
           errorMessage = 'Failed to reset profile photo.';
         }
       } else if (success && _newProfileImageFile != null) {
-        final newAvatarUrl = await FirebaseService.uploadAvatar(_newProfileImageFile!);
+        final newAvatarUrl = await FirebaseService.uploadAvatar(
+          _newProfileImageFile!,
+        );
         if (newAvatarUrl == null) {
           success = false;
           errorMessage = 'Failed to upload profile photo.';
@@ -200,7 +228,10 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
 
         if (success) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Profile updated successfully!'), backgroundColor: Colors.green),
+            const SnackBar(
+              content: Text('Profile updated successfully!'),
+              backgroundColor: Colors.green,
+            ),
           );
           Navigator.of(context).pop(true);
         } else {
@@ -216,7 +247,10 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
       if (mounted) {
         await Provider.of<UserProvider>(context, listen: false).refreshUser();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('An error occurred: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('An error occurred: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
@@ -239,11 +273,7 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
       padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            Color(0xFF00207B),
-            Color(0xFF001759),
-            Color(0xFF000A26),
-          ],
+          colors: [Color(0xFF00207B), Color(0xFF001759), Color(0xFF000A26)],
           stops: [0.0, 0.33, 1.0],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
@@ -268,13 +298,21 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
             ),
             const Text(
               'Edit Profile',
-              style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 24),
             _buildAvatarEditor(),
             const SizedBox(height: 24),
             _buildTextField(label: 'Username', controller: _usernameController),
-            _buildTextField(label: 'Phone Number', controller: _phoneController, keyboardType: TextInputType.phone),
+            _buildTextField(
+              label: 'Phone Number',
+              controller: _phoneController,
+              keyboardType: TextInputType.phone,
+            ),
             const SizedBox(height: 24),
             _buildSaveChangesButton(),
           ],
@@ -304,9 +342,14 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
                 radius: 50,
                 backgroundColor: Colors.grey.shade700,
                 backgroundImage: imageProvider,
-                child: imageProvider == null
-                    ? Icon(Icons.add_a_photo, color: Colors.white.withOpacity(0.7), size: 40)
-                    : null,
+                child:
+                    imageProvider == null
+                        ? Icon(
+                          Icons.add_a_photo,
+                          color: Colors.white.withOpacity(0.7),
+                          size: 40,
+                        )
+                        : null,
               ),
               Container(
                 padding: const EdgeInsets.all(6),
@@ -314,7 +357,11 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
                   color: kPrimaryBlue,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.camera_alt, color: Colors.white, size: 18),
+                child: const Icon(
+                  Icons.camera_alt,
+                  color: Colors.white,
+                  size: 18,
+                ),
               ),
             ],
           ),
@@ -325,14 +372,24 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
           children: [
             TextButton.icon(
               onPressed: _isSaving ? null : _pickImage,
-              icon: const Icon(Icons.photo_library, size: 16, color: kLightBlue),
-              label: const Text('Choose Photo', style: TextStyle(color: kLightBlue, fontSize: 13)),
+              icon: const Icon(
+                Icons.photo_library,
+                size: 16,
+                color: kLightBlue,
+              ),
+              label: const Text(
+                'Choose Photo',
+                style: TextStyle(color: kLightBlue, fontSize: 13),
+              ),
             ),
             const SizedBox(width: 8),
             TextButton.icon(
               onPressed: _isSaving ? null : _resetAvatar,
               icon: const Icon(Icons.restore, size: 16, color: Colors.white70),
-              label: const Text('Reset Photo', style: TextStyle(color: Colors.white70, fontSize: 13)),
+              label: const Text(
+                'Reset Photo',
+                style: TextStyle(color: Colors.white70, fontSize: 13),
+              ),
             ),
           ],
         ),
@@ -350,7 +407,13 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 8),
           TextFormField(
             controller: controller,
@@ -369,7 +432,10 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
               ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
             ),
           ),
         ],
@@ -389,23 +455,24 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
           ),
         ),
         onPressed: _isSaving ? null : _saveChanges,
-        child: _isSaving
-            ? const SizedBox(
-                height: 22,
-                width: 22,
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                  strokeWidth: 2.5,
+        child:
+            _isSaving
+                ? const SizedBox(
+                  height: 22,
+                  width: 22,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2.5,
+                  ),
+                )
+                : const Text(
+                  'Save Changes',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              )
-            : const Text(
-                'Save Changes',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
       ),
     );
   }

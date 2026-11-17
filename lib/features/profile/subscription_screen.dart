@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'package:sentient/core/providers/user_provider.dart';
 import 'package:sentient/core/services/firebase_service.dart';
@@ -22,88 +23,129 @@ class SubscriptionScreen extends StatefulWidget {
 class _SubscriptionScreenState extends State<SubscriptionScreen> {
   bool _isProcessing = false;
 
-  Future<void> _handleSubscriptionPurchase(String planName, String duration, int price) async {
+  Future<void> _handleSubscriptionPurchase(
+    String planName,
+    String duration,
+    int price,
+  ) async {
     if (_isProcessing) return;
 
     setState(() => _isProcessing = true);
 
     try {
       final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Silakan login terlebih dahulu.')),
+        );
+        return;
+      }
+
       final userData = await FirebaseService.getCurrentUser();
       if (!mounted) return;
-      final userEmail = userData?['email'] ?? user?.email ?? 'member@sentient.id';
-      final userName = userData?['username'] ?? user?.displayName ?? 'Sentient Grandmaster';
+      final userEmail =
+          userData?['email'] ?? user.email ?? 'member@sentient.id';
+      final userName =
+          userData?['username'] ?? user.displayName ?? 'Sentient Member';
 
-      // Navigate to realistic payment gateway page
+      // 1. Buka Halaman Demo Payment Gateway
       final result = await Navigator.of(context).push<bool>(
         MaterialPageRoute(
-          builder: (context) => DemoPaymentPage(
-            planName: planName,
-            duration: duration,
-            price: price,
-            userEmail: userEmail,
-            userName: userName,
-          ),
+          builder:
+              (context) => DemoPaymentPage(
+                planName: planName,
+                duration: duration,
+                price: price,
+                userEmail: userEmail,
+                userName: userName,
+              ),
         ),
       );
 
-      // If payment was successful
+      // 2. Jika Pembayaran Berhasil (User klik "Mulai Belajar Sekarang")
       if (result == true) {
-        // 1. INSTANT ZERO-LATENCY UNLOCK: Notify UserProvider and SimulatedOrderService immediately!
-        if (mounted) {
-          try {
-            Provider.of<UserProvider>(context, listen: false)
-                .setPremiumInstant(true, tier: planName, duration: duration);
-          } catch (_) {}
-        }
-        SimulatedOrderService.togglePremium(true, tier: planName);
+        // Hitung masa aktif langganan
+        int days = 30;
+        if (duration.contains('3')) days = 90;
+        if (duration.contains('6')) days = 180;
+        final expiresAt = DateTime.now().add(Duration(days: days));
 
-        // 2. Persist to Firestore and SharedPreferences asynchronously
+        final firestoreData = {
+          'is_premium': true,
+          'subscription_tier': planName,
+          'subscription_duration': duration,
+          'subscribed_at': FieldValue.serverTimestamp(),
+          'subscription_expires_at': Timestamp.fromDate(expiresAt),
+          'updated_at': FieldValue.serverTimestamp(),
+        };
+
+        // SIMPAN PERMANEN KE CLOUD FIRESTORE
+        try {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .update(firestoreData);
+        } catch (_) {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .set(firestoreData, SetOptions(merge: true));
+        }
+
+        // Cache offline di SharedPreferences & service
         FirebaseService.updatePremiumStatus(
           true,
           tierName: planName,
           duration: duration,
         );
 
+        // Update State Lokal Secara Instan
         if (mounted) {
-          _showSuccessSnackBar('🎉 Congratulations! $planName ($duration) activated successfully.');
-          setState(() {});
+          try {
+            Provider.of<UserProvider>(
+              context,
+              listen: false,
+            ).setPremiumInstant(true, tier: planName, duration: duration);
+          } catch (_) {}
 
-          // Auto return after brief smooth feedback so caller knows subscription succeeded
-          Future.delayed(const Duration(milliseconds: 500), () {
-            if (mounted && Navigator.canPop(context)) {
-              Navigator.of(context).pop(true);
-            }
-          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.verified, color: Colors.amber, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Selamat! Akunmu sekarang resmi menjadi $planName Tier Premium.',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: const Color(0xFF0F52BA),
+              duration: const Duration(seconds: 4),
+            ),
+          );
+
+          setState(() {});
         }
+
+        SimulatedOrderService.togglePremium(true, tier: planName);
       }
     } catch (e) {
-      _showErrorSnackBar('Payment error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal memperbarui status premium: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() => _isProcessing = false);
       }
     }
-  }
-
-  void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
-  void _showSuccessSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
   }
 
   @override
@@ -141,11 +183,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [
-                Color(0xFF000A26),
-                Color(0xFF001759),
-                Color(0xFF00207B),
-              ],
+              colors: [Color(0xFF000A26), Color(0xFF001759), Color(0xFF00207B)],
               stops: [0.0, 0.66, 1.0],
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
@@ -161,8 +199,12 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               Image.asset(
                 'assets/images/img_logo.png',
                 height: 80,
-                errorBuilder: (c, e, s) =>
-                const Icon(Icons.workspace_premium, color: kPrimaryBlue, size: 80),
+                errorBuilder:
+                    (c, e, s) => const Icon(
+                      Icons.workspace_premium,
+                      color: kPrimaryBlue,
+                      size: 80,
+                    ),
               ),
               const SizedBox(height: 20),
               const Text(
@@ -202,10 +244,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                     const SizedBox(height: 12),
                     const Text(
                       'All payments are processed securely via Flip',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: kDarkBlue,
-                      ),
+                      style: TextStyle(fontSize: 12, color: kDarkBlue),
                     ),
                     const SizedBox(height: 16),
                     Wrap(
@@ -213,12 +252,30 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                       runSpacing: 12,
                       alignment: WrapAlignment.center,
                       children: [
-                        _PaymentMethodIcon(icon: Icons.account_balance_wallet, name: 'GoPay'),
-                        _PaymentMethodIcon(icon: Icons.shopping_bag, name: 'ShopeePay'),
-                        _PaymentMethodIcon(icon: Icons.phone_android, name: 'DANA'),
-                        _PaymentMethodIcon(icon: Icons.phone_iphone, name: 'OVO'),
-                        _PaymentMethodIcon(icon: Icons.qr_code_scanner, name: 'QRIS'),
-                        _PaymentMethodIcon(icon: Icons.account_balance, name: 'Virtual Account'),
+                        _PaymentMethodIcon(
+                          icon: Icons.account_balance_wallet,
+                          name: 'GoPay',
+                        ),
+                        _PaymentMethodIcon(
+                          icon: Icons.shopping_bag,
+                          name: 'ShopeePay',
+                        ),
+                        _PaymentMethodIcon(
+                          icon: Icons.phone_android,
+                          name: 'DANA',
+                        ),
+                        _PaymentMethodIcon(
+                          icon: Icons.phone_iphone,
+                          name: 'OVO',
+                        ),
+                        _PaymentMethodIcon(
+                          icon: Icons.qr_code_scanner,
+                          name: 'QRIS',
+                        ),
+                        _PaymentMethodIcon(
+                          icon: Icons.account_balance,
+                          name: 'Virtual Account',
+                        ),
                       ],
                     ),
                   ],
@@ -232,8 +289,14 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                 price: 99000,
                 benefits: benefits,
                 isProcessing: _isProcessing,
-                isCurrentlyActive: isCurrentPremium && activeTier.contains('pawn'),
-                onPurchase: () => _handleSubscriptionPurchase('Pawn Tier', '1 Month', 99000),
+                isCurrentlyActive:
+                    isCurrentPremium && activeTier.contains('pawn'),
+                onPurchase:
+                    () => _handleSubscriptionPurchase(
+                      'Pawn Tier',
+                      '1 Month',
+                      99000,
+                    ),
               ),
               SubscriptionTierCard(
                 iconPath: 'assets/images/ic_knight.png',
@@ -242,8 +305,14 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                 price: 269000,
                 benefits: benefits,
                 isProcessing: _isProcessing,
-                isCurrentlyActive: isCurrentPremium && activeTier.contains('knight'),
-                onPurchase: () => _handleSubscriptionPurchase('Knight Tier', '3 Month', 269000),
+                isCurrentlyActive:
+                    isCurrentPremium && activeTier.contains('knight'),
+                onPurchase:
+                    () => _handleSubscriptionPurchase(
+                      'Knight Tier',
+                      '3 Month',
+                      269000,
+                    ),
               ),
               SubscriptionTierCard(
                 iconPath: 'assets/images/ic_queen.png',
@@ -252,10 +321,17 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                 price: 499000,
                 benefits: benefits,
                 isProcessing: _isProcessing,
-                isCurrentlyActive: isCurrentPremium &&
+                isCurrentlyActive:
+                    isCurrentPremium &&
                     (activeTier.contains('queen') ||
-                        (!activeTier.contains('pawn') && !activeTier.contains('knight'))),
-                onPurchase: () => _handleSubscriptionPurchase('Queen Tier', '6 Month', 499000),
+                        (!activeTier.contains('pawn') &&
+                            !activeTier.contains('knight'))),
+                onPurchase:
+                    () => _handleSubscriptionPurchase(
+                      'Queen Tier',
+                      '6 Month',
+                      499000,
+                    ),
               ),
             ],
           ),
@@ -296,17 +372,29 @@ class SubscriptionTierCard extends StatelessWidget {
     final Color buttonTextColor;
 
     if (tierName.contains('Queen')) {
-      gradientColors = const [Color(0xFFD4AF37), Color(0xFFFFDF00), Color(0xFFAA7C11)]; // Luxury Gold
+      gradientColors = const [
+        Color(0xFFD4AF37),
+        Color(0xFFFFDF00),
+        Color(0xFFAA7C11),
+      ]; // Luxury Gold
       textColor = const Color(0xFF1A1A2E);
       buttonBgColor = const Color(0xFF1A1A2E);
       buttonTextColor = const Color(0xFFFFDF00);
     } else if (tierName.contains('Knight')) {
-      gradientColors = const [Color(0xFFE5E4E2), Color(0xFFB0C4DE), Color(0xFF708090)]; // Platinum Silver
+      gradientColors = const [
+        Color(0xFFE5E4E2),
+        Color(0xFFB0C4DE),
+        Color(0xFF708090),
+      ]; // Platinum Silver
       textColor = const Color(0xFF000A26);
       buttonBgColor = const Color(0xFF000A26);
       buttonTextColor = Colors.white;
     } else {
-      gradientColors = const [Color(0xFF0F52BA), Color(0xFF00207B), Color(0xFF000A26)]; // Sapphire Blue
+      gradientColors = const [
+        Color(0xFF0F52BA),
+        Color(0xFF00207B),
+        Color(0xFF000A26),
+      ]; // Sapphire Blue
       textColor = Colors.white;
       buttonBgColor = Colors.white;
       buttonTextColor = const Color(0xFF0F52BA);
@@ -341,7 +429,8 @@ class SubscriptionTierCard extends StatelessWidget {
                 iconPath,
                 height: 44,
                 width: 44,
-                errorBuilder: (c, e, s) => Icon(Icons.shield, color: textColor, size: 44),
+                errorBuilder:
+                    (c, e, s) => Icon(Icons.shield, color: textColor, size: 44),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -366,7 +455,10 @@ class SubscriptionTierCard extends StatelessWidget {
                         if (isCurrentlyActive) ...[
                           const SizedBox(width: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
                             decoration: BoxDecoration(
                               color: textColor.withValues(alpha: 0.18),
                               borderRadius: BorderRadius.circular(20),
@@ -382,9 +474,10 @@ class SubscriptionTierCard extends StatelessWidget {
                                   width: 6,
                                   height: 6,
                                   decoration: BoxDecoration(
-                                    color: tierName.contains('Queen') 
-                                        ? const Color(0xFF1A1A2E) 
-                                        : const Color(0xFF10B981),
+                                    color:
+                                        tierName.contains('Queen')
+                                            ? const Color(0xFF1A1A2E)
+                                            : const Color(0xFF10B981),
                                     shape: BoxShape.circle,
                                   ),
                                 ),
@@ -447,7 +540,10 @@ class SubscriptionTierCard extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: buttonBgColor,
                   foregroundColor: buttonTextColor,
-                  padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 22,
+                    vertical: 10,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),
                   ),
@@ -455,23 +551,26 @@ class SubscriptionTierCard extends StatelessWidget {
                   shadowColor: Colors.black38,
                 ),
                 onPressed: isProcessing ? null : onPurchase,
-                child: isProcessing
-                    ? SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(buttonTextColor),
+                child:
+                    isProcessing
+                        ? SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              buttonTextColor,
+                            ),
+                          ),
+                        )
+                        : Text(
+                          isCurrentlyActive ? 'Renew' : 'Buy Now',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            fontFamily: 'Poppins',
+                          ),
                         ),
-                      )
-                    : Text(
-                        isCurrentlyActive ? 'Renew' : 'Buy Now',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                          fontFamily: 'Poppins',
-                        ),
-                      ),
               ),
             ],
           ),
@@ -491,7 +590,9 @@ class SubscriptionTierCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          ...benefits.map((benefit) => _BenefitItem(text: benefit, color: textColor)),
+          ...benefits.map(
+            (benefit) => _BenefitItem(text: benefit, color: textColor),
+          ),
         ],
       ),
     );
@@ -512,10 +613,7 @@ class _BenefitItem extends StatelessWidget {
           Container(
             width: 6,
             height: 6,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -538,10 +636,7 @@ class _PaymentMethodIcon extends StatelessWidget {
   final IconData icon;
   final String name;
 
-  const _PaymentMethodIcon({
-    required this.icon,
-    required this.name,
-  });
+  const _PaymentMethodIcon({required this.icon, required this.name});
 
   @override
   Widget build(BuildContext context) {
@@ -560,11 +655,7 @@ class _PaymentMethodIcon extends StatelessWidget {
               ),
             ],
           ),
-          child: Icon(
-            icon,
-            color: kPrimaryBlue,
-            size: 24,
-          ),
+          child: Icon(icon, color: kPrimaryBlue, size: 24),
         ),
         const SizedBox(height: 8),
         Text(

@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:sentient/core/widgets/animated_route.dart';
+import 'package:sentient/features/auth/verify_email_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -43,6 +45,25 @@ class _SplashScreenState extends State<SplashScreen>
 
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
+      try {
+        await user.reload();
+      } catch (e) {
+        debugPrint('Splash user reload error: $e');
+      }
+      final freshUser = FirebaseAuth.instance.currentUser;
+      if (freshUser == null) {
+        if (!mounted) return;
+        Navigator.pushReplacementNamed(context, '/cta');
+        return;
+      }
+      if (!freshUser.emailVerified) {
+        if (!mounted) return;
+        Navigator.of(context).pushReplacement(
+          FadeRoute(page: const VerifyEmailScreen()),
+        );
+        return;
+      }
+      if (!mounted) return;
       Navigator.pushReplacementNamed(context, '/home');
     } else {
       Navigator.pushReplacementNamed(context, '/cta');

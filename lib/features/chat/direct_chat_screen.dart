@@ -64,8 +64,10 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
 
   void _initChallengeWatcher() {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
-    final currentUserId = userProvider.userData?['id']?.toString() ??
-        ChessOnlineService.currentUserId ?? '';
+    final currentUserId =
+        userProvider.userData?['id']?.toString() ??
+        ChessOnlineService.currentUserId ??
+        '';
     if (currentUserId.isEmpty) return;
 
     _acceptedChallengeSub?.cancel();
@@ -81,7 +83,9 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
           for (var doc in snapshot.docs) {
             final data = doc.data();
             final matchId = data['match_id']?.toString();
-            if (matchId != null && matchId.isNotEmpty && matchId != _joinedMatchId) {
+            if (matchId != null &&
+                matchId.isNotEmpty &&
+                matchId != _joinedMatchId) {
               _joinedMatchId = matchId;
               _enterMatch(matchId, 'white');
               break;
@@ -95,7 +99,9 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     _joinedMatchId = matchId;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('🎉 Entering online match with ${widget.targetUserName}...'),
+        content: Text(
+          '🎉 Entering online match with ${widget.targetUserName}...',
+        ),
         backgroundColor: const Color(0xFF10B981),
         duration: const Duration(seconds: 2),
       ),
@@ -104,25 +110,31 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ChessGameScreen(
-          isAIGame: false,
-          isOnlineGame: true,
-          onlineMatchId: matchId,
-          onlinePlayerColor: playerColor,
-          onlineOpponentName: widget.targetUserName,
-          onlineOpponentAvatar: widget.targetUserAvatar,
-        ),
+        builder:
+            (context) => ChessGameScreen(
+              isAIGame: false,
+              isOnlineGame: true,
+              onlineMatchId: matchId,
+              onlinePlayerColor: playerColor,
+              onlineOpponentName: widget.targetUserName,
+              onlineOpponentAvatar: widget.targetUserAvatar,
+            ),
       ),
     );
 
     // Saat keluar dari game, periksa apakah pertandingan sudah selesai/aborted
     try {
-      final doc = await FirebaseFirestore.instance.collection('chess_matches').doc(matchId).get();
+      final doc =
+          await FirebaseFirestore.instance
+              .collection('chess_matches')
+              .doc(matchId)
+              .get();
       if (doc.exists) {
         final matchStatus = doc.data()?['status']?.toString();
         final challengeId = doc.data()?['challenge_id']?.toString() ?? matchId;
         if (matchStatus != null && matchStatus != 'ongoing') {
-          final newChatStatus = (matchStatus == 'aborted') ? 'aborted' : 'completed';
+          final newChatStatus =
+              (matchStatus == 'aborted') ? 'aborted' : 'completed';
           await ChatService.updateChallengeStatusByChallengeId(
             targetUserId: widget.targetUserId,
             challengeId: challengeId,
@@ -188,12 +200,15 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
 
       _sendMessage(
         type: 'chess_invite',
-        customText: 'Let\'s play Chess together! ♟️ (${ChessTimeControl.formatSummary(chosenSeconds)})',
+        customText:
+            'Let\'s play Chess together! ♟️ (${ChessTimeControl.formatSummary(chosenSeconds)})',
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('⚡ ${widget.targetUserName} accepted the challenge! Starting match...'),
+            content: Text(
+              '⚡ ${widget.targetUserName} accepted the challenge! Starting match...',
+            ),
             backgroundColor: const Color(0xFF10B981),
             duration: const Duration(seconds: 2),
           ),
@@ -203,12 +218,13 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => ChessGameScreen(
-                isAIGame: true,
-                aiDifficulty: 'medium',
-                onlineOpponentName: widget.targetUserName,
-                initialTimeSeconds: chosenSeconds,
-              ),
+              builder:
+                  (context) => ChessGameScreen(
+                    isAIGame: true,
+                    aiDifficulty: 'medium',
+                    onlineOpponentName: widget.targetUserName,
+                    initialTimeSeconds: chosenSeconds,
+                  ),
             ),
           );
         });
@@ -229,7 +245,9 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Sending challenge (${ChessTimeControl.formatSummary(chosenSeconds)}) to ${widget.targetUserName}... ⏳'),
+        content: Text(
+          'Sending challenge (${ChessTimeControl.formatSummary(chosenSeconds)}) to ${widget.targetUserName}... ⏳',
+        ),
         duration: const Duration(seconds: 2),
         backgroundColor: const Color(0xFF1E3A8A),
       ),
@@ -250,7 +268,8 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
       _sendMessage(
         type: 'chess_invite',
         challengeId: challengeId,
-        customText: 'Let\'s play Chess together! ♟️ (${ChessTimeControl.formatSummary(chosenSeconds)})',
+        customText:
+            'Let\'s play Chess together! ♟️ (${ChessTimeControl.formatSummary(chosenSeconds)})',
       );
 
       _listenToOutgoingChallenge(challengeId);
@@ -258,7 +277,9 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Chess challenge sent to ${widget.targetUserName}! ⚔️'),
+            content: Text(
+              'Chess challenge sent to ${widget.targetUserName}! ⚔️',
+            ),
             backgroundColor: const Color(0xFF10B981),
           ),
         );
@@ -266,7 +287,9 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Failed to send challenge (check network or Firebase rules)'),
+          content: Text(
+            'Failed to send challenge (check network or Firebase rules)',
+          ),
           backgroundColor: Colors.orange,
         ),
       );
@@ -275,7 +298,9 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
 
   void _listenToOutgoingChallenge(String challengeId) {
     _outgoingChallengeSub?.cancel();
-    _outgoingChallengeSub = ChessOnlineService.streamChallenge(challengeId).listen((doc) {
+    _outgoingChallengeSub = ChessOnlineService.streamChallenge(
+      challengeId,
+    ).listen((doc) {
       if (!doc.exists || !mounted) return;
       final data = doc.data() as Map<String, dynamic>?;
       if (data == null) return;
@@ -283,7 +308,9 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
       final status = data['status']?.toString();
       final matchId = data['match_id']?.toString();
 
-      if (status == 'accepted' && matchId != null && matchId != _joinedMatchId) {
+      if (status == 'accepted' &&
+          matchId != null &&
+          matchId != _joinedMatchId) {
         _outgoingChallengeSub?.cancel();
 
         _enterMatch(matchId, 'white');
@@ -297,7 +324,9 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('❌ ${widget.targetUserName} declined the chess challenge.'),
+              content: Text(
+                '❌ ${widget.targetUserName} declined the chess challenge.',
+              ),
               backgroundColor: Colors.redAccent,
             ),
           );
@@ -331,34 +360,44 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     if (isBot) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('⚡ Starting chess match with ${widget.targetUserName}...'),
+          content: Text(
+            '⚡ Starting chess match with ${widget.targetUserName}...',
+          ),
           backgroundColor: const Color(0xFF10B981),
         ),
       );
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => ChessGameScreen(
-            isAIGame: true,
-            aiDifficulty: 'medium',
-            onlineOpponentName: widget.targetUserName,
-          ),
+          builder:
+              (context) => ChessGameScreen(
+                isAIGame: true,
+                aiDifficulty: 'medium',
+                onlineOpponentName: widget.targetUserName,
+              ),
         ),
       );
       return;
     }
 
     final userProvider = Provider.of<UserProvider>(context, listen: false);
-    final myId = userProvider.userData?['id']?.toString() ??
-        ChessOnlineService.currentUserId ?? '';
-    final currentName = userProvider.userData?['username']?.toString() ?? 'Player';
+    final myId =
+        userProvider.userData?['id']?.toString() ??
+        ChessOnlineService.currentUserId ??
+        '';
+    final currentName =
+        userProvider.userData?['username']?.toString() ?? 'Player';
     final currentAvatar = userProvider.userData?['avatar']?.toString();
     final isMe = msg.senderId == myId;
 
     // Jika pertandingan sudah ada / match_id sudah terisi, periksa statusnya terlebih dahulu
     if (msg.matchId != null && msg.matchId!.isNotEmpty) {
       try {
-        final doc = await FirebaseFirestore.instance.collection('chess_matches').doc(msg.matchId).get();
+        final doc =
+            await FirebaseFirestore.instance
+                .collection('chess_matches')
+                .doc(msg.matchId)
+                .get();
         if (doc.exists) {
           final mStatus = doc.data()?['status']?.toString();
           if (mStatus != null && mStatus != 'ongoing') {
@@ -398,10 +437,11 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     // 1. Ambil dokumen tantangan asli dari challengeId pada pesan jika ada
     if (msg.challengeId != null && msg.challengeId!.isNotEmpty) {
       try {
-        final doc = await FirebaseFirestore.instance
-            .collection('chess_challenges')
-            .doc(msg.challengeId)
-            .get();
+        final doc =
+            await FirebaseFirestore.instance
+                .collection('chess_challenges')
+                .doc(msg.challengeId)
+                .get();
         if (doc.exists) {
           final cStatus = doc.data()?['status']?.toString();
           if (cStatus == 'declined' || cStatus == 'cancelled') {
@@ -413,7 +453,9 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('This challenge has been declined or cancelled.'),
+                  content: Text(
+                    'This challenge has been declined or cancelled.',
+                  ),
                   backgroundColor: Colors.redAccent,
                 ),
               );
@@ -430,8 +472,12 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     // 2. Fallback: cari pending challenge dari lawan
     if (targetChallenge == null && myId.isNotEmpty) {
       try {
-        final incomingList = await ChessOnlineService.getIncomingChallengesOnce(myId);
-        final matchFound = incomingList.where((c) => c.senderId == widget.targetUserId);
+        final incomingList = await ChessOnlineService.getIncomingChallengesOnce(
+          myId,
+        );
+        final matchFound = incomingList.where(
+          (c) => c.senderId == widget.targetUserId,
+        );
         if (matchFound.isNotEmpty) {
           targetChallenge = matchFound.first;
         }
@@ -443,11 +489,13 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     // 3. Robust Ultimate Fallback: Jika tidak ditemukan di Firestore, buat model secara instan
     // dari data percakapan chat agar tantangan TIDAK PERNAH gagal dibuat!
     targetChallenge ??= ChessChallengeModel(
-      id: (msg.challengeId != null && msg.challengeId!.isNotEmpty)
-          ? msg.challengeId!
-          : 'chat_inv_${msg.id}',
+      id:
+          (msg.challengeId != null && msg.challengeId!.isNotEmpty)
+              ? msg.challengeId!
+              : 'chat_inv_${msg.id}',
       senderId: msg.senderId.isNotEmpty ? msg.senderId : widget.targetUserId,
-      senderName: msg.senderName.isNotEmpty ? msg.senderName : widget.targetUserName,
+      senderName:
+          msg.senderName.isNotEmpty ? msg.senderName : widget.targetUserName,
       senderAvatar: msg.senderAvatar ?? widget.targetUserAvatar,
       receiverId: myId,
       receiverName: currentName,
@@ -481,8 +529,10 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
   @override
   Widget build(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context);
-    final currentUserId = userProvider.userData?['id']?.toString() ??
-        ChessOnlineService.currentUserId ?? '';
+    final currentUserId =
+        userProvider.userData?['id']?.toString() ??
+        ChessOnlineService.currentUserId ??
+        '';
 
     return Scaffold(
       body: Container(
@@ -490,11 +540,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF0F172A),
-              Color(0xFF1E293B),
-              Color(0xFF0F172A),
-            ],
+            colors: [Color(0xFF0F172A), Color(0xFF1E293B), Color(0xFF0F172A)],
           ),
         ),
         child: SafeArea(
@@ -503,11 +549,17 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
               _buildHeader(context),
               Expanded(
                 child: StreamBuilder<List<ChatMessageModel>>(
-                  stream: ChatService.streamMessages(widget.targetUserId, customSenderId: currentUserId),
+                  stream: ChatService.streamMessages(
+                    widget.targetUserId,
+                    customSenderId: currentUserId,
+                  ),
                   builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+                    if (snapshot.connectionState == ConnectionState.waiting &&
+                        !snapshot.hasData) {
                       return const Center(
-                        child: CircularProgressIndicator(color: Colors.blueAccent),
+                        child: CircularProgressIndicator(
+                          color: Colors.blueAccent,
+                        ),
                       );
                     }
 
@@ -534,21 +586,36 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.forum_outlined, size: 64, color: Colors.white.withValues(alpha: 0.25)),
+                            Icon(
+                              Icons.forum_outlined,
+                              size: 64,
+                              color: Colors.white.withValues(alpha: 0.25),
+                            ),
                             const SizedBox(height: 12),
                             Text(
                               'Mulai percakapan dengan ${widget.targetUserName}',
-                              style: const TextStyle(color: Colors.white60, fontSize: 14),
+                              style: const TextStyle(
+                                color: Colors.white60,
+                                fontSize: 14,
+                              ),
                             ),
                             const SizedBox(height: 16),
                             ElevatedButton.icon(
-                              icon: const Icon(Icons.sports_esports_rounded, size: 18),
+                              icon: const Icon(
+                                Icons.sports_esports_rounded,
+                                size: 18,
+                              ),
                               label: const Text('Ajak Main Catur ♟️'),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF2563EB),
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 10,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                               ),
                               onPressed: _sendChessChallengeInvite,
                             ),
@@ -560,7 +627,10 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                     return ListView.builder(
                       controller: _scrollController,
                       reverse: true,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                       itemCount: messages.length,
                       itemBuilder: (context, index) {
                         final msg = messages[index];
@@ -584,7 +654,9 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: const Color(0xFF1E293B).withValues(alpha: 0.95),
-        border: Border(bottom: BorderSide(color: Colors.white.withValues(alpha: 0.1))),
+        border: Border(
+          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+        ),
       ),
       child: Row(
         children: [
@@ -597,19 +669,32 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
               CircleAvatar(
                 radius: 20,
                 backgroundColor: Colors.blueGrey,
-                backgroundImage: widget.targetUserAvatar != null && widget.targetUserAvatar!.isNotEmpty
-                    ? ImageHelper.getImageProvider(widget.targetUserAvatar)
-                    : null,
-                child: widget.targetUserAvatar == null || widget.targetUserAvatar!.isEmpty
-                    ? Text(
-                        widget.targetUserName.isNotEmpty ? widget.targetUserName[0].toUpperCase() : '?',
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                      )
-                    : null,
+                backgroundImage:
+                    widget.targetUserAvatar != null &&
+                            widget.targetUserAvatar!.isNotEmpty
+                        ? ImageHelper.getImageProvider(widget.targetUserAvatar)
+                        : null,
+                child:
+                    widget.targetUserAvatar == null ||
+                            widget.targetUserAvatar!.isEmpty
+                        ? Text(
+                          widget.targetUserName.isNotEmpty
+                              ? widget.targetUserName[0].toUpperCase()
+                              : '?',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        )
+                        : null,
               ),
               // Stream status online di avatar
               StreamBuilder<DocumentSnapshot>(
-                stream: FirebaseFirestore.instance.collection('users').doc(widget.targetUserId).snapshots(),
+                stream:
+                    FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(widget.targetUserId)
+                        .snapshots(),
                 builder: (context, snapshot) {
                   Map<String, dynamic>? userData;
                   if (snapshot.hasData && snapshot.data!.exists) {
@@ -625,7 +710,10 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                       decoration: BoxDecoration(
                         color: isOnline ? const Color(0xFF22C55E) : Colors.grey,
                         shape: BoxShape.circle,
-                        border: Border.all(color: const Color(0xFF1E293B), width: 2),
+                        border: Border.all(
+                          color: const Color(0xFF1E293B),
+                          width: 2,
+                        ),
                       ),
                     ),
                   );
@@ -650,14 +738,20 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                   overflow: TextOverflow.ellipsis,
                 ),
                 StreamBuilder<DocumentSnapshot>(
-                  stream: FirebaseFirestore.instance.collection('users').doc(widget.targetUserId).snapshots(),
+                  stream:
+                      FirebaseFirestore.instance
+                          .collection('users')
+                          .doc(widget.targetUserId)
+                          .snapshots(),
                   builder: (context, snapshot) {
                     Map<String, dynamic>? userData;
                     if (snapshot.hasData && snapshot.data!.exists) {
                       userData = snapshot.data!.data() as Map<String, dynamic>?;
                     }
                     final isOnline = NotificationService.isUserOnline(userData);
-                    final presenceText = NotificationService.formatLastSeen(userData);
+                    final presenceText = NotificationService.formatLastSeen(
+                      userData,
+                    );
 
                     return Row(
                       mainAxisSize: MainAxisSize.min,
@@ -666,7 +760,10 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                           width: 6,
                           height: 6,
                           decoration: BoxDecoration(
-                            color: isOnline ? const Color(0xFF22C55E) : Colors.white38,
+                            color:
+                                isOnline
+                                    ? const Color(0xFF22C55E)
+                                    : Colors.white38,
                             shape: BoxShape.circle,
                           ),
                         ),
@@ -675,9 +772,15 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                           child: Text(
                             isOnline ? 'Online' : presenceText,
                             style: TextStyle(
-                              color: isOnline ? const Color(0xFF22C55E) : Colors.white60,
+                              color:
+                                  isOnline
+                                      ? const Color(0xFF22C55E)
+                                      : Colors.white60,
                               fontSize: 11,
-                              fontWeight: isOnline ? FontWeight.w600 : FontWeight.normal,
+                              fontWeight:
+                                  isOnline
+                                      ? FontWeight.w600
+                                      : FontWeight.normal,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -692,12 +795,17 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
           ),
           ElevatedButton.icon(
             icon: const Icon(Icons.sports_esports, size: 16),
-            label: const Text('Challenge', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+            label: const Text(
+              'Challenge',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            ),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF2563EB),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
             onPressed: _sendChessChallengeInvite,
           ),
@@ -712,10 +820,11 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     if (msg.type == 'chess_invite') {
       if (msg.challengeId != null && msg.challengeId!.isNotEmpty) {
         return StreamBuilder<DocumentSnapshot>(
-          stream: FirebaseFirestore.instance
-              .collection('chess_challenges')
-              .doc(msg.challengeId!)
-              .snapshots(),
+          stream:
+              FirebaseFirestore.instance
+                  .collection('chess_challenges')
+                  .doc(msg.challengeId!)
+                  .snapshots(),
           builder: (context, snapshot) {
             String challengeStatus = msg.challengeStatus ?? 'pending';
             String? matchId = msg.matchId;
@@ -752,6 +861,46 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
         matchId: msg.matchId,
       );
     }
+
+    // Balon chat standar untuk pesan teks biasa
+    return Align(
+      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.75,
+        ),
+        decoration: BoxDecoration(
+          color: isMe ? const Color(0xFF0F52BA) : const Color(0xFF1E293B),
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(16),
+            topRight: const Radius.circular(16),
+            bottomLeft: Radius.circular(isMe ? 16 : 4),
+            bottomRight: Radius.circular(isMe ? 4 : 16),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment:
+              isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              msg.text,
+              style: const TextStyle(color: Colors.white, fontSize: 14),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              timeStr,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.6),
+                fontSize: 10,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildInviteBubble({
@@ -761,7 +910,8 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     required String challengeStatus,
     required String? matchId,
   }) {
-    final isMatchCreated = matchId != null && matchId.isNotEmpty && challengeStatus == 'accepted';
+    final isMatchCreated =
+        matchId != null && matchId.isNotEmpty && challengeStatus == 'accepted';
 
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
@@ -771,18 +921,25 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
         constraints: const BoxConstraints(maxWidth: 290),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: isMe
-                ? [const Color(0xFF1E3A8A), const Color(0xFF2563EB)]
-                : [const Color(0xFF1E293B), const Color(0xFF334155)],
+            colors:
+                isMe
+                    ? [const Color(0xFF1E3A8A), const Color(0xFF2563EB)]
+                    : [const Color(0xFF1E293B), const Color(0xFF334155)],
           ),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isMatchCreated ? const Color(0xFF10B981) : Colors.blueAccent.withValues(alpha: 0.6),
+            color:
+                isMatchCreated
+                    ? const Color(0xFF10B981)
+                    : Colors.blueAccent.withValues(alpha: 0.6),
             width: 1.5,
           ),
           boxShadow: [
             BoxShadow(
-              color: (isMatchCreated ? const Color(0xFF10B981) : Colors.blueAccent).withValues(alpha: 0.25),
+              color: (isMatchCreated
+                      ? const Color(0xFF10B981)
+                      : Colors.blueAccent)
+                  .withValues(alpha: 0.25),
               blurRadius: 8,
             ),
           ],
@@ -792,19 +949,25 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
           children: [
             Row(
               children: [
-                const Icon(Icons.sports_esports_rounded, color: Colors.amberAccent, size: 20),
+                const Icon(
+                  Icons.sports_esports_rounded,
+                  color: Colors.amberAccent,
+                  size: 20,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     challengeStatus == 'declined'
                         ? '❌ Challenge Declined'
                         : challengeStatus == 'aborted'
-                            ? '⏱️ Match Aborted'
-                            : challengeStatus == 'completed'
-                                ? '🏁 Match Completed'
-                                : isMatchCreated
-                                    ? '🎮 Active Chess Match'
-                                    : (isMe ? 'Chess Invitation Sent' : '⚔️ Incoming Chess Challenge!'),
+                        ? '⏱️ Match Aborted'
+                        : challengeStatus == 'completed'
+                        ? '🏁 Match Completed'
+                        : isMatchCreated
+                        ? '🎮 Active Chess Match'
+                        : (isMe
+                            ? 'Chess Invitation Sent'
+                            : '⚔️ Incoming Chess Challenge!'),
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
@@ -823,81 +986,133 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
             // Status Badge & Action Buttons
             if (challengeStatus == 'declined') ...[
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.redAccent.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.redAccent.withValues(alpha: 0.4)),
+                  border: Border.all(
+                    color: Colors.redAccent.withValues(alpha: 0.4),
+                  ),
                 ),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.cancel_rounded, color: Colors.redAccent, size: 14),
+                    Icon(
+                      Icons.cancel_rounded,
+                      color: Colors.redAccent,
+                      size: 14,
+                    ),
                     SizedBox(width: 6),
                     Text(
                       'Challenge was declined',
-                      style: TextStyle(color: Colors.redAccent, fontSize: 11, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        color: Colors.redAccent,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),
               ),
             ] else if (challengeStatus == 'aborted') ...[
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.orangeAccent.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orangeAccent.withValues(alpha: 0.4)),
+                  border: Border.all(
+                    color: Colors.orangeAccent.withValues(alpha: 0.4),
+                  ),
                 ),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.timer_off_rounded, color: Colors.orangeAccent, size: 14),
+                    Icon(
+                      Icons.timer_off_rounded,
+                      color: Colors.orangeAccent,
+                      size: 14,
+                    ),
                     SizedBox(width: 6),
                     Text(
                       'Match was aborted',
-                      style: TextStyle(color: Colors.orangeAccent, fontSize: 11, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        color: Colors.orangeAccent,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),
               ),
             ] else if (challengeStatus == 'completed') ...[
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.purpleAccent.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.purpleAccent.withValues(alpha: 0.4)),
+                  border: Border.all(
+                    color: Colors.purpleAccent.withValues(alpha: 0.4),
+                  ),
                 ),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.emoji_events_rounded, color: Colors.purpleAccent, size: 14),
+                    Icon(
+                      Icons.emoji_events_rounded,
+                      color: Colors.purpleAccent,
+                      size: 14,
+                    ),
                     SizedBox(width: 6),
                     Text(
                       'Match has finished',
-                      style: TextStyle(color: Colors.purpleAccent, fontSize: 11, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        color: Colors.purpleAccent,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),
               ),
             ] else if (isMatchCreated) ...[
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 margin: const EdgeInsets.only(bottom: 8),
                 decoration: BoxDecoration(
                   color: const Color(0xFF10B981).withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
+                  border: Border.all(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.4),
+                  ),
                 ),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 14),
+                    Icon(
+                      Icons.check_circle_rounded,
+                      color: Color(0xFF10B981),
+                      size: 14,
+                    ),
                     SizedBox(width: 6),
                     Text(
                       'Challenge Accepted & Active!',
-                      style: TextStyle(color: Color(0xFF10B981), fontSize: 11, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        color: Color(0xFF10B981),
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),
@@ -908,15 +1123,21 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                   icon: const Icon(Icons.play_circle_fill_rounded, size: 16),
                   label: Text(
                     isMe ? 'Enter Match (White ⚪)' : 'Enter Match (Black ⚫)',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF10B981),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 9),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
-                  onPressed: () => _enterMatch(matchId, isMe ? 'white' : 'black'),
+                  onPressed:
+                      () => _enterMatch(matchId, isMe ? 'white' : 'black'),
                 ),
               ),
             ] else if (!isMe) ...[
@@ -927,12 +1148,20 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                     flex: 3,
                     child: ElevatedButton.icon(
                       icon: const Icon(Icons.sports_esports_rounded, size: 16),
-                      label: const Text('Accept ♟️', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      label: const Text(
+                        'Accept ♟️',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF10B981),
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 9),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
                       onPressed: () => _acceptChallengeFromChat(msg),
                     ),
@@ -944,10 +1173,19 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(color: Colors.redAccent),
                         padding: const EdgeInsets.symmetric(vertical: 9),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
                       onPressed: () => _declineChallengeFromChat(msg),
-                      child: const Text('Decline', style: TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.bold)),
+                      child: const Text(
+                        'Decline',
+                        style: TextStyle(
+                          color: Colors.redAccent,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -955,7 +1193,10 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
             ] else ...[
               // Pengirim: indikator menunggu lawan
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.black26,
                   borderRadius: BorderRadius.circular(8),
@@ -967,12 +1208,19 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                     SizedBox(
                       width: 12,
                       height: 12,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.amberAccent),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.amberAccent,
+                      ),
                     ),
                     SizedBox(width: 8),
                     Text(
                       'Waiting for opponent to accept...',
-                      style: TextStyle(color: Colors.amberAccent, fontSize: 11, fontStyle: FontStyle.italic),
+                      style: TextStyle(
+                        color: Colors.amberAccent,
+                        fontSize: 11,
+                        fontStyle: FontStyle.italic,
+                      ),
                     ),
                   ],
                 ),
@@ -983,40 +1231,11 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
               alignment: Alignment.bottomRight,
               child: Text(
                 timeStr,
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 10),
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.6),
+                  fontSize: 10,
+                ),
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    return Align(
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        constraints: const BoxConstraints(maxWidth: 280),
-        decoration: BoxDecoration(
-          color: isMe ? const Color(0xFF2563EB) : const Color(0xFF334155),
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(16),
-            topRight: const Radius.circular(16),
-            bottomLeft: Radius.circular(isMe ? 16 : 4),
-            bottomRight: Radius.circular(isMe ? 4 : 16),
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-          children: [
-            Text(
-              msg.text,
-              style: const TextStyle(color: Colors.white, fontSize: 15),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              timeStr,
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 10),
             ),
           ],
         ),
@@ -1029,12 +1248,17 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: const Color(0xFF1E293B),
-        border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.1))),
+        border: Border(
+          top: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+        ),
       ),
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.sports_esports_outlined, color: Colors.amberAccent),
+            icon: const Icon(
+              Icons.sports_esports_outlined,
+              color: Colors.amberAccent,
+            ),
             tooltip: 'Send Chess Challenge',
             onPressed: _sendChessChallengeInvite,
           ),
@@ -1050,7 +1274,10 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                 style: const TextStyle(color: Colors.white, fontSize: 14),
                 decoration: InputDecoration(
                   hintText: 'Type a message...',
-                  hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 14),
+                  hintStyle: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.4),
+                    fontSize: 14,
+                  ),
                   border: InputBorder.none,
                 ),
                 onSubmitted: (_) => _sendMessage(),
@@ -1064,7 +1291,11 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
               shape: BoxShape.circle,
             ),
             child: IconButton(
-              icon: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+              icon: const Icon(
+                Icons.send_rounded,
+                color: Colors.white,
+                size: 20,
+              ),
               onPressed: () => _sendMessage(),
             ),
           ),

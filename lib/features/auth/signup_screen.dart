@@ -2,8 +2,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:provider/provider.dart';
-import 'package:sentient/core/providers/user_provider.dart';
 import 'package:sentient/core/services/firebase_service.dart';
 import 'package:sentient/core/widgets/animated_route.dart';
 import 'package:sentient/features/auth/login_screen.dart';
@@ -32,7 +30,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   // Validation getters
   bool get _hasEmailValid =>
-      _emailController.text.contains('@') && _emailController.text.contains('.');
+      _emailController.text.contains('@') &&
+      _emailController.text.contains('.');
   bool get _hasMinLength => _passwordController.text.length >= 8;
   bool get _hasUppercase => _passwordController.text.contains(RegExp(r'[A-Z]'));
   bool get _hasLowercase => _passwordController.text.contains(RegExp(r'[a-z]'));
@@ -74,8 +73,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
       if (pickedFile != null) {
         final directory = await getApplicationDocumentsDirectory();
         final fileName = 'avatar_${DateTime.now().millisecondsSinceEpoch}.jpg';
-        final savedImage =
-            await File(pickedFile.path).copy('${directory.path}/$fileName');
+        final savedImage = await File(
+          pickedFile.path,
+        ).copy('${directory.path}/$fileName');
         if (mounted) {
           setState(() {
             _profileImage = savedImage;
@@ -210,17 +210,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
     try {
       final username = _usernameController.text.trim();
-      // Validasi awal keunikan username sebelum membuat akun
-      final isTaken = await FirebaseService.isUsernameTaken(username);
-      if (isTaken) {
-        if (!mounted) return;
-        setState(() {
-          _error = 'Username "' + username + '" is already taken. Please choose another username.';
-          _loading = false;
-        });
-        return;
-      }
 
+      // Langsung panggil FirebaseService.register
+      // Validasi ketersediaan username dilakukan otomatis di dalam register setelah sesi Auth aktif,
+      // dan akan langsung di-rollback jika ternyata username sudah terpakai.
       final userCredential = await FirebaseService.register(
         username: username,
         email: _emailController.text.trim(),
@@ -229,7 +222,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
       );
 
       if (userCredential != null) {
-        debugPrint('Firebase registration successful: ${userCredential.user?.uid}');
+        debugPrint(
+          'Firebase registration successful: ${userCredential.user?.uid}',
+        );
       }
 
       // Do not fetch profile into UserProvider yet since email is pending verification
@@ -250,8 +245,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
         );
       } else {
         if (!mounted) return;
+        String cleanMessage = e.toString().replaceAll('Exception: ', '');
+        if (cleanMessage.contains('permission-denied')) {
+          cleanMessage =
+              'Koneksi database ditolak. Pastikan izin Firestore Rules sudah di-publish.';
+        } else if (cleanMessage.contains('network-request-failed')) {
+          cleanMessage = 'Koneksi internet bermasalah. Periksa jaringan Anda.';
+        }
+
         setState(() {
-          _error = e.toString().replaceAll('Exception: ', '');
+          _error = cleanMessage;
         });
       }
     } finally {
@@ -369,7 +372,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
         child: SafeArea(
           child: SingleChildScrollView(
             physics: const ClampingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 24.0,
+              vertical: 12.0,
+            ),
             child: Form(
               key: _formKey,
               child: Column(
@@ -379,10 +385,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   IconButton(
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
-                    icon: Image.asset(
-                      'assets/icons/ic_back.png',
-                      height: 24,
-                    ),
+                    icon: Image.asset('assets/icons/ic_back.png', height: 24),
                     onPressed: () => Navigator.pop(context),
                   ),
                   const SizedBox(height: 8),
@@ -417,7 +420,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFF3576F6).withOpacity(0.35),
+                                  color: const Color(
+                                    0xFF3576F6,
+                                  ).withOpacity(0.35),
                                   blurRadius: 14,
                                   spreadRadius: 2,
                                 ),
@@ -426,20 +431,21 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             child: CircleAvatar(
                               backgroundColor: Colors.white.withOpacity(0.1),
                               radius: 54,
-                              child: _profileImage != null
-                                  ? ClipOval(
-                                      child: Image.file(
-                                        _profileImage!,
-                                        width: 108,
-                                        height: 108,
-                                        fit: BoxFit.cover,
+                              child:
+                                  _profileImage != null
+                                      ? ClipOval(
+                                        child: Image.file(
+                                          _profileImage!,
+                                          width: 108,
+                                          height: 108,
+                                          fit: BoxFit.cover,
+                                        ),
+                                      )
+                                      : const Icon(
+                                        Icons.add_a_photo_outlined,
+                                        color: Color(0xFF3576F6),
+                                        size: 38,
                                       ),
-                                    )
-                                  : const Icon(
-                                      Icons.add_a_photo_outlined,
-                                      color: Color(0xFF3576F6),
-                                      size: 38,
-                                    ),
                             ),
                           ),
                         ),
@@ -832,9 +838,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       decoration: BoxDecoration(
                         color: Colors.red.withOpacity(0.12),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: Colors.red.withOpacity(0.4),
-                        ),
+                        border: Border.all(color: Colors.red.withOpacity(0.4)),
                       ),
                       child: Row(
                         children: [
@@ -872,24 +876,25 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         elevation: 3,
                       ),
                       onPressed: _loading ? null : _register,
-                      child: _loading
-                          ? const SizedBox(
-                              height: 22,
-                              width: 22,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2.5,
+                      child:
+                          _loading
+                              ? const SizedBox(
+                                height: 22,
+                                width: 22,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2.5,
+                                ),
+                              )
+                              : const Text(
+                                'Sign Up',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  fontFamily: 'Poppins',
+                                  color: Colors.white,
+                                ),
                               ),
-                            )
-                          : const Text(
-                              'Sign Up',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                fontFamily: 'Poppins',
-                                color: Colors.white,
-                              ),
-                            ),
                     ),
                   ),
 

@@ -6,6 +6,7 @@ import 'package:sentient/features/auth/splash_screen.dart';
 import 'package:sentient/features/home/cta_screen.dart';
 import 'package:sentient/features/auth/signup_screen.dart';
 import 'package:sentient/features/auth/login_screen.dart';
+import 'package:sentient/features/auth/verify_email_screen.dart';
 import 'package:sentient/features/profile/profile_screen.dart';
 import 'package:sentient/features/auth/welcome_screen.dart';
 import 'package:sentient/features/auth/signup_choice_screen.dart';
@@ -77,6 +78,7 @@ class MyApp extends StatelessWidget {
             '/signup': (context) => const SignUpScreen(),
             '/login': (context) => const LoginScreen(),
             '/profile': (context) => const ProfileScreen(),
+            '/verify-email': (context) => const VerifyEmailScreen(),
             '/home': (context) => const MainNavigation(),
           },
         );

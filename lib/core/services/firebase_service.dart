@@ -20,47 +20,80 @@ class FirebaseService {
     required String password,
     dynamic avatarFile,
   }) async {
+    final cleanUsername = username.trim();
+    final cleanEmail = email.trim().toLowerCase();
+
+    UserCredential? userCredential;
+
     try {
-      print('Attempting to register user: $email, username: $username');
-      
-      UserCredential userCredential = await _auth
-          .createUserWithEmailAndPassword(email: email, password: password);
+      print(
+        'Attempting to register user: $cleanEmail, username: $cleanUsername',
+      );
 
-      print('User created successfully: ${userCredential.user?.uid}');
+      // 1. Buat User di Firebase Auth TERLEBIH DAHULU agar terautentikasi (request.auth != null)
+      userCredential = await _auth.createUserWithEmailAndPassword(
+        email: cleanEmail,
+        password: password,
+      );
 
-      try { await userCredential.user?.sendEmailVerification(); print('Verification email sent to: $email'); } catch (e) { print('Warning sending verification email: $e'); }
+      final user = userCredential.user;
+      if (user == null) throw Exception('Gagal membuat user authentication.');
 
-      try {
-        await userCredential.user?.updateDisplayName(username);
-      } catch (_) {}
+      // 2. Sekarang cek ketersediaan username di Firestore (Aman karena request.auth != null)
+      final isAvailable = await isUsernameAvailable(
+        cleanUsername,
+        excludeUid: user.uid,
+      );
+      if (!isAvailable) {
+        throw Exception(
+          'Username "$cleanUsername" sudah digunakan. Silakan pilih username lain.',
+        );
+      }
 
-      // Simpan sementara di pending_registrations (TIDAK di collection users sebelum verifikasi)
-      final cleanUsername = username.trim();
-      await _firestore.collection('pending_registrations').doc(userCredential.user!.uid).set({
-        'username': cleanUsername,
-        'username_lowercase': cleanUsername.toLowerCase(),
-        'email': email.trim().toLowerCase(),
-        'email_verified': false,
-        'avatar': null,
-        'phone': null,
-        'created_at': FieldValue.serverTimestamp(),
-      });
-
+      String? avatarUrl;
       if (avatarFile != null) {
         try {
-          await uploadAvatar(avatarFile);
+          avatarUrl = await uploadAvatar(avatarFile);
         } catch (uploadErr) {
           print('Avatar upload error during registration: $uploadErr');
         }
       }
 
-      print('User data saved to Firestore successfully');
+      // 3. Simpan Profil ke Firestore (Beserta username_lowercase untuk pencarian unik)
+      final userData = {
+        'username': cleanUsername,
+        'username_lowercase': cleanUsername.toLowerCase(),
+        'email': cleanEmail,
+        'email_verified': false,
+        'avatar': avatarUrl,
+        'phone': null,
+        'is_premium': false,
+        'created_at': FieldValue.serverTimestamp(),
+        'updated_at': FieldValue.serverTimestamp(),
+      };
+
+      await _firestore.collection('users').doc(user.uid).set(userData);
+
+      // 4. Update Display Name di Firebase Auth
+      await user.updateDisplayName(cleanUsername);
+
+      // 5. BARU KIRIM EMAIL VERIFIKASI (Hanya jika Firestore sudah sukses tersimpan)
+      await user.sendEmailVerification();
+      print('Verification email sent to: $cleanEmail');
+
       return userCredential;
     } catch (e) {
+      // ⚠️ ROLLBACK: Jika username kembar atau Firestore gagal simpan, hapus akun Auth agar tidak jadi akun hantu
+      if (userCredential?.user != null) {
+        try {
+          await userCredential!.user!.delete();
+          print(
+            'Rollback: Akun auth dibatalkan karena proses pendaftaran belum tuntas.',
+          );
+        } catch (_) {}
+      }
       print('Error during registration: $e');
-      print('Error type: ${e.runtimeType}');
-      
-      // Provide more specific error messages
+
       String errorMessage = 'Registration failed';
       if (e is FirebaseAuthException) {
         switch (e.code) {
@@ -82,45 +115,96 @@ class FirebaseService {
           default:
             errorMessage = 'Registration failed: ${e.message}';
         }
+        throw Exception(errorMessage);
       }
-      
-      print('User-friendly error message: $errorMessage');
-      throw Exception(errorMessage);
+      rethrow;
+    }
+  }
+
+  /// 1. Cek apakah username masih tersedia (belum dipakai orang lain)
+  static Future<bool> isUsernameAvailable(
+    String username, {
+    String? excludeUid,
+  }) async {
+    try {
+      final cleanUsername = username.trim().toLowerCase();
+      if (cleanUsername.isEmpty) return false;
+
+      // 1. Cek pada collection users
+      final query =
+          await _firestore
+              .collection('users')
+              .where('username_lowercase', isEqualTo: cleanUsername)
+              .get();
+
+      if (query.docs.isNotEmpty) {
+        if (excludeUid != null && query.docs.length == 1) {
+          if (query.docs.first.id != excludeUid) return false;
+        } else {
+          return false;
+        }
+      }
+
+      // 2. Fallback cek username asli di users
+      final fallbackQuery =
+          await _firestore
+              .collection('users')
+              .where('username', isEqualTo: username.trim())
+              .get();
+
+      if (fallbackQuery.docs.isNotEmpty) {
+        if (excludeUid != null && fallbackQuery.docs.length == 1) {
+          if (fallbackQuery.docs.first.id != excludeUid) return false;
+        } else {
+          return false;
+        }
+      }
+
+      // Cukup cek di collection 'users', tidak perlu ke pending_registrations
+      return true;
+    } catch (e) {
+      print('Error checking username: $e');
+      return true; // Fallback jika error jaringan
+    }
+  }
+
+  /// 2. Cari email berdasarkan username (untuk keperluan login via username)
+  static Future<String?> getEmailFromUsername(String usernameOrEmail) async {
+    final input = usernameOrEmail.trim();
+    // Jika input sudah berformat email, langsung kembalikan
+    if (input.contains('@')) return input;
+
+    try {
+      // Cari dokumen user berdasarkan username
+      var query =
+          await _firestore
+              .collection('users')
+              .where('username_lowercase', isEqualTo: input.toLowerCase())
+              .limit(1)
+              .get();
+
+      if (query.docs.isEmpty) {
+        query =
+            await _firestore
+                .collection('users')
+                .where('username', isEqualTo: input)
+                .limit(1)
+                .get();
+      }
+
+      if (query.docs.isNotEmpty) {
+        return query.docs.first.data()['email'] as String?;
+      }
+      return null;
+    } catch (e) {
+      print('Error finding email from username: $e');
+      return null;
     }
   }
 
   /// Mencari email pengguna berdasarkan username (case-insensitive)
   static Future<String?> getEmailByUsername(String username) async {
-    final clean = username.trim().toLowerCase();
-    if (clean.isEmpty) return null;
-
-    try {
-      // 1. Cek pada username_lowercase
-      var snap = await _firestore
-          .collection('users')
-          .where('username_lowercase', isEqualTo: clean)
-          .limit(1)
-          .get();
-
-      if (snap.docs.isEmpty) {
-        // 2. Fallback cek username asli
-        snap = await _firestore
-            .collection('users')
-            .where('username', isEqualTo: username.trim())
-            .limit(1)
-            .get();
-      }
-
-      if (snap.docs.isNotEmpty) {
-        final email = snap.docs.first.data()['email']?.toString();
-        if (email != null && email.isNotEmpty) {
-          return email;
-        }
-      }
-    } catch (e) {
-      debugPrint('Error finding email for username $username: $e');
-    }
-    return null;
+    return getEmailFromUsername(username);
   }
 
   /// Login mendukung input Email maupun Username
@@ -149,13 +233,23 @@ class FirebaseService {
       // Ensure username_lowercase is saved for existing accounts
       if (credential.user != null) {
         try {
-          final doc = await _firestore.collection('users').doc(credential.user!.uid).get();
+          final doc =
+              await _firestore
+                  .collection('users')
+                  .doc(credential.user!.uid)
+                  .get();
           if (doc.exists && doc.data()?['username_lowercase'] == null) {
-            final uName = doc.data()?['username']?.toString() ?? credential.user!.displayName ?? '';
+            final uName =
+                doc.data()?['username']?.toString() ??
+                credential.user!.displayName ??
+                '';
             if (uName.isNotEmpty) {
-              await _firestore.collection('users').doc(credential.user!.uid).set({
-                'username_lowercase': uName.toLowerCase().trim(),
-              }, SetOptions(merge: true));
+              await _firestore
+                  .collection('users')
+                  .doc(credential.user!.uid)
+                  .set({
+                    'username_lowercase': uName.toLowerCase().trim(),
+                  }, SetOptions(merge: true));
             }
           }
         } catch (_) {}
@@ -163,9 +257,13 @@ class FirebaseService {
 
       return credential;
     } on FirebaseAuthException catch (e) {
-      debugPrint('FirebaseAuthException during login: ${e.code} - ${e.message}');
+      debugPrint(
+        'FirebaseAuthException during login: ${e.code} - ${e.message}',
+      );
       if (e.code == 'user-not-found') {
-        throw Exception('Account not found. Please check your email or username.');
+        throw Exception(
+          'Account not found. Please check your email or username.',
+        );
       } else if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
         throw Exception('Incorrect password. Please try again.');
       } else if (e.code == 'invalid-email') {
@@ -175,7 +273,9 @@ class FirebaseService {
       } else if (e.code == 'too-many-requests') {
         throw Exception('Too many failed attempts. Please try again later.');
       } else {
-        throw Exception(e.message ?? 'Login failed. Please check your credentials.');
+        throw Exception(
+          e.message ?? 'Login failed. Please check your credentials.',
+        );
       }
     } catch (e) {
       debugPrint('Error during login: $e');
@@ -189,7 +289,8 @@ class FirebaseService {
       if (googleUser == null) {
         return null;
       }
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
       final OAuthCredential credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
@@ -213,39 +314,21 @@ class FirebaseService {
     }
   }
 
-  /// Cek apakah username sudah dipakai (case-insensitive)
+  /// Konfirmasi email berhasil diverifikasi: update status akun di collection 'users'
   static Future<void> completeRegistrationAfterVerification(User user) async {
     try {
-      final pendingDoc = await _firestore.collection('pending_registrations').doc(user.uid).get();
-      Map<String, dynamic> userData = {};
-      if (pendingDoc.exists) {
-        userData = pendingDoc.data() ?? {};
-      }
-
-      final username = userData['username'] ?? user.displayName ?? 'User';
-      final cleanUsername = username.toString().trim();
-
-      // Buat akun resmi di collection 'users' HANYA setelah email terverifikasi
+      // ✅ CUKUP UPDATE STATUS EMAIL VERIFIED LANGSUNG DI USERS
       await _firestore.collection('users').doc(user.uid).set({
-        'username': cleanUsername,
-        'username_lowercase': cleanUsername.toLowerCase(),
-        'email': user.email?.trim().toLowerCase() ?? '',
         'email_verified': true,
-        'avatar': userData['avatar'],
-        'phone': userData['phone'],
-        'created_at': userData['created_at'] ?? FieldValue.serverTimestamp(),
         'updated_at': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
-
-      // Hapus data sementara di pending_registrations
-      try {
-        await _firestore.collection('pending_registrations').doc(user.uid).delete();
-      } catch (_) {}
 
       // Sinkronisasi FCM token pengguna terverifikasi secara instan
       NotificationService.syncUserFCMToken();
 
-      debugPrint('Account officially created in users collection for verified user: ${user.uid}');
+      debugPrint(
+        'Email successfully verified for user: ${user.uid}',
+      );
     } catch (e) {
       debugPrint('Error completing registration: $e');
     }
@@ -254,63 +337,29 @@ class FirebaseService {
   static Future<void> deleteUnverifiedAccount(User user) async {
     try {
       final uid = user.uid;
-      // 1. Hapus dari pending_registrations
-      try {
-        await _firestore.collection('pending_registrations').doc(uid).delete();
-      } catch (_) {}
-
-      // 2. Hapus dari users jika sempat terbuat
+      // Hapus langsung dari users jika akun dibatalkan
       try {
         await _firestore.collection('users').doc(uid).delete();
       } catch (_) {}
-
-      // 3. Hapus akun dari Firebase Authentication
       await user.delete();
-      debugPrint('Successfully deleted unverified user from Auth & Firestore: $uid');
+      debugPrint('Unverified account successfully deleted for: $uid');
     } catch (e) {
-      debugPrint('Error deleting unverified user: $e');
+      debugPrint('Error deleting unverified account: $e');
       try {
         await _auth.signOut();
       } catch (_) {}
     }
   }
 
-  static Future<bool> isUsernameTaken(String username, {String? excludeUserId}) async {
-    final clean = username.trim().toLowerCase();
-    if (clean.isEmpty) return false;
-
-    try {
-      debugPrint('Checking username availability for: $clean');
-
-      // 1. Cek pada username_lowercase (case-insensitive)
-      final snapLower = await _firestore
-          .collection('users')
-          .where('username_lowercase', isEqualTo: clean)
-          .limit(2)
-          .get();
-
-      for (var doc in snapLower.docs) {
-        if (excludeUserId != null && doc.id == excludeUserId) continue;
-        return true;
-      }
-
-      // 2. Fallback cek username asli jika ada dokumen lama tanpa username_lowercase
-      final snapExact = await _firestore
-          .collection('users')
-          .where('username', isEqualTo: username.trim())
-          .limit(2)
-          .get();
-
-      for (var doc in snapExact.docs) {
-        if (excludeUserId != null && doc.id == excludeUserId) continue;
-        return true;
-      }
-
-      return false;
-    } catch (e) {
-      debugPrint("Error checking username: $e");
-      return false;
-    }
+  static Future<bool> isUsernameTaken(
+    String username, {
+    String? excludeUserId,
+  }) async {
+    final available = await isUsernameAvailable(
+      username,
+      excludeUid: excludeUserId,
+    );
+    return !available;
   }
 
   static Future<bool> updateUserProfile(Map<String, dynamic> data) async {
@@ -321,9 +370,14 @@ class FirebaseService {
     if (data.containsKey('username')) {
       final newUsername = data['username']?.toString().trim() ?? '';
       if (newUsername.isNotEmpty) {
-        final isTaken = await isUsernameTaken(newUsername, excludeUserId: userId);
+        final isTaken = await isUsernameTaken(
+          newUsername,
+          excludeUserId: userId,
+        );
         if (isTaken) {
-          throw Exception('Username "$newUsername" is already taken by another user.');
+          throw Exception(
+            'Username "$newUsername" is already taken by another user.',
+          );
         }
         data['username'] = newUsername;
         data['username_lowercase'] = newUsername.toLowerCase();
@@ -358,7 +412,7 @@ class FirebaseService {
 
     final userDocRef = _firestore.collection('users').doc(userId);
     await userDocRef.update({
-      'liked_products': FieldValue.arrayUnion([productId])
+      'liked_products': FieldValue.arrayUnion([productId]),
     });
   }
 
@@ -368,7 +422,7 @@ class FirebaseService {
 
     final userDocRef = _firestore.collection('users').doc(userId);
     await userDocRef.update({
-      'liked_products': FieldValue.arrayRemove([productId])
+      'liked_products': FieldValue.arrayRemove([productId]),
     });
   }
 
@@ -377,12 +431,13 @@ class FirebaseService {
       User? user = _auth.currentUser;
       if (user != null) {
         DocumentSnapshot doc =
-        await _firestore.collection('users').doc(user.uid).get();
-        List<String> providerIds = user.providerData.map((userInfo) => userInfo.providerId).toList();
+            await _firestore.collection('users').doc(user.uid).get();
+        List<String> providerIds =
+            user.providerData.map((userInfo) => userInfo.providerId).toList();
 
         if (doc.exists) {
           Map<String, dynamic> userData = doc.data() as Map<String, dynamic>;
-          
+
           // Read premium status from Firestore or fallback to local SharedPreferences
           bool isPremium = userData['is_premium'] ?? false;
           String? tier = userData['subscription_tier']?.toString();
@@ -399,7 +454,9 @@ class FirebaseService {
           // 1. If Firestore has a valid remote URL or Base64 string, use it.
           String? avatar = userData['avatar']?.toString();
           // If it was an old local file path that no longer exists on disk, ignore it.
-          if (avatar != null && !avatar.startsWith('http') && !avatar.startsWith('data:image')) {
+          if (avatar != null &&
+              !avatar.startsWith('http') &&
+              !avatar.startsWith('data:image')) {
             try {
               if (!File(avatar).existsSync()) {
                 avatar = null;
@@ -432,7 +489,26 @@ class FirebaseService {
             'is_premium': isPremium,
             'created_at': userData['created_at'],
             'updated_at': userData['updated_at'],
-            'liked_products': (userData['liked_products'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
+            'liked_products':
+                (userData['liked_products'] as List<dynamic>?)
+                    ?.map((e) => e.toString())
+                    .toList() ??
+                [],
+            'saved_courses':
+                (userData['saved_courses'] as List<dynamic>?)
+                    ?.map((e) => e.toString())
+                    .toList() ??
+                [],
+            'in_progress_courses':
+                (userData['in_progress_courses'] as List<dynamic>?)
+                    ?.map((e) => e.toString())
+                    .toList() ??
+                [],
+            'finished_courses':
+                (userData['finished_courses'] as List<dynamic>?)
+                    ?.map((e) => e.toString())
+                    .toList() ??
+                [],
             'providerIds': providerIds,
           };
         } else {
@@ -462,14 +538,15 @@ class FirebaseService {
           };
         }
       }
-      
+
       // High-fidelity mock user profile for simulation
       print('Firebase user is null. Returning mock user details.');
       return {
         'id': 'mock_user_123',
         'email': 'tes123@gmail.com',
         'username': 'Ardli',
-        'avatar': 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+        'avatar':
+            'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
         'phone': '+628123456789',
         'created_at': Timestamp.now(),
         'updated_at': Timestamp.now(),
@@ -482,7 +559,8 @@ class FirebaseService {
         'id': 'mock_user_123',
         'email': 'tes123@gmail.com',
         'username': 'Ardli',
-        'avatar': 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+        'avatar':
+            'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
         'phone': '+628123456789',
         'created_at': Timestamp.now(),
         'updated_at': Timestamp.now(),
@@ -502,7 +580,8 @@ class FirebaseService {
         return 'https://via.placeholder.com/150';
       } else {
         // Mobile implementation
-        final File file = (avatarFile is File) ? avatarFile : File(avatarFile.toString());
+        final File file =
+            (avatarFile is File) ? avatarFile : File(avatarFile.toString());
         if (!file.existsSync()) {
           print('Avatar file does not exist on disk: ${file.path}');
           return null;
@@ -516,12 +595,14 @@ class FirebaseService {
         try {
           print('Attempting to upload avatar to Firebase Storage...');
           final snapshot = await _storage
-              .ref('avatar_${user.uid}_${DateTime.now().millisecondsSinceEpoch}')
+              .ref(
+                'avatar_${user.uid}_${DateTime.now().millisecondsSinceEpoch}',
+              )
               .putFile(file);
-          
+
           String downloadUrl = await snapshot.ref.getDownloadURL();
           print('Firebase Storage upload successful: $downloadUrl');
-          
+
           await _firestore.collection('users').doc(user.uid).update({
             'avatar': downloadUrl,
             'updated_at': FieldValue.serverTimestamp(),
@@ -535,24 +616,31 @@ class FirebaseService {
 
           return downloadUrl;
         } catch (storageError) {
-          print('Firebase Storage unavailable: $storageError. Falling back to compressed Base64 in Firestore.');
-          
+          print(
+            'Firebase Storage unavailable: $storageError. Falling back to compressed Base64 in Firestore.',
+          );
+
           try {
             final bytes = await file.readAsBytes();
-            
+
             // Limit to 500 KB to be strictly safe within Firestore 1 MB document limit
             if (bytes.length > 500 * 1024) {
-              print('Image size is too large for Firestore Base64: ${bytes.length} bytes (Limit: 500 KB)');
+              print(
+                'Image size is too large for Firestore Base64: ${bytes.length} bytes (Limit: 500 KB)',
+              );
               return null;
             }
 
-            String base64Image = "data:image/jpeg;base64,${base64Encode(bytes)}";
-            
+            String base64Image =
+                "data:image/jpeg;base64,${base64Encode(bytes)}";
+
             await _firestore.collection('users').doc(user.uid).update({
               'avatar': base64Image,
               'updated_at': FieldValue.serverTimestamp(),
             });
-            print('Base64 avatar successfully saved to Firestore! Size: ${bytes.length} bytes');
+            print(
+              'Base64 avatar successfully saved to Firestore! Size: ${bytes.length} bytes',
+            );
 
             // Clean up any old local path from SharedPreferences
             try {
@@ -590,7 +678,9 @@ class FirebaseService {
         await prefs.remove('avatar_path_${user.uid}');
       } catch (_) {}
 
-      print('Avatar successfully reset to account default (${defaultAvatar.isNotEmpty ? "Google photo" : "No photo"})');
+      print(
+        'Avatar successfully reset to account default (${defaultAvatar.isNotEmpty ? "Google photo" : "No photo"})',
+      );
       return true;
     } catch (e) {
       print('Error resetting avatar to default: $e');
@@ -601,9 +691,7 @@ class FirebaseService {
   static Future<List<Map<String, dynamic>>> getAllCourses() async {
     try {
       QuerySnapshot querySnapshot =
-      await _firestore
-          .collection('courses')
-          .get();
+          await _firestore.collection('courses').get();
 
       return querySnapshot.docs.map((doc) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
@@ -618,7 +706,7 @@ class FirebaseService {
   static Future<Map<String, dynamic>?> getCourseById(String courseId) async {
     try {
       DocumentSnapshot doc =
-      await _firestore.collection('courses').doc(courseId).get();
+          await _firestore.collection('courses').doc(courseId).get();
 
       if (doc.exists) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
@@ -631,42 +719,83 @@ class FirebaseService {
     }
   }
 
+  /// 1. Catat Kursus Sedang Dipelajari (In Progress)
   static Future<bool> enrollInCourse(String courseId) async {
     try {
-      User? user = _auth.currentUser;
-      if (user == null) return false;
+      final user = _auth.currentUser;
+      if (user == null || courseId.isEmpty) return false;
 
-      await _firestore
-          .collection('enrollments')
-          .doc('${user.uid}_$courseId')
-          .set({
-        'user_id': user.uid,
-        'course_id': courseId,
-        'status': 'in_progress',
-        'progress': 0,
-        'enrolled_at': FieldValue.serverTimestamp(),
-        'updated_at': FieldValue.serverTimestamp(),
-      });
+      // Simpan ke dokumen user agar kebal rules & terbaca instan
+      await _firestore.collection('users').doc(user.uid).set({
+        'in_progress_courses': FieldValue.arrayUnion([courseId]),
+      }, SetOptions(merge: true));
+
+      // Backup ke collection enrollments
+      try {
+        await _firestore
+            .collection('enrollments')
+            .doc('${user.uid}_$courseId')
+            .set({
+              'user_id': user.uid,
+              'course_id': courseId,
+              'status': 'in_progress',
+              'updated_at': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
+      } catch (_) {}
 
       return true;
     } catch (e) {
-      print('Error enrolling in course: $e');
+      print('Error enrollInCourse: $e');
+      return false;
+    }
+  }
+
+  /// 2. Catat Kursus Sudah Selesai (Finished)
+  static Future<bool> completeCourse(String courseId) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null || courseId.isEmpty) return false;
+
+      // Pindahkan dari in_progress ke finished di dokumen user
+      await _firestore.collection('users').doc(user.uid).set({
+        'in_progress_courses': FieldValue.arrayRemove([courseId]),
+        'finished_courses': FieldValue.arrayUnion([courseId]),
+      }, SetOptions(merge: true));
+
+      // Update di collection enrollments
+      try {
+        await _firestore
+            .collection('enrollments')
+            .doc('${user.uid}_$courseId')
+            .set({
+              'user_id': user.uid,
+              'course_id': courseId,
+              'status': 'completed',
+              'progress': 100,
+              'completed_at': FieldValue.serverTimestamp(),
+              'updated_at': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
+      } catch (_) {}
+
+      return true;
+    } catch (e) {
+      print('Error completeCourse: $e');
       return false;
     }
   }
 
   static Future<Map<String, dynamic>?> getCourseProgress(
-      String courseId,
-      ) async {
+    String courseId,
+  ) async {
     try {
       User? user = _auth.currentUser;
       if (user == null) return null;
 
       DocumentSnapshot doc =
-      await _firestore
-          .collection('enrollments')
-          .doc('${user.uid}_$courseId')
-          .get();
+          await _firestore
+              .collection('enrollments')
+              .doc('${user.uid}_$courseId')
+              .get();
 
       if (doc.exists) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
@@ -679,12 +808,78 @@ class FirebaseService {
     }
   }
 
+  /// 3. Toggle Simpan / Bookmark Kursus ke Dokumen User
+  static Future<bool> toggleSaveCourse(String courseId) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return false;
+
+      final docRef = _firestore.collection('users').doc(user.uid);
+      final doc = await docRef.get();
+      final List<dynamic> saved =
+          (doc.data()?['saved_courses'] as List<dynamic>?) ?? [];
+
+      if (saved.contains(courseId)) {
+        await docRef.update({
+          'saved_courses': FieldValue.arrayRemove([courseId]),
+        });
+        return false; // Berhasil dihapus dari bookmark
+      } else {
+        await docRef.set({
+          'saved_courses': FieldValue.arrayUnion([courseId]),
+        }, SetOptions(merge: true));
+        return true; // Berhasil disimpan ke bookmark
+      }
+    } catch (e) {
+      print('Error toggle save course: $e');
+      return false;
+    }
+  }
+
+  /// 4. Ambil Statistik Lengkap User dari Dokumen Profil (100% Kebal Error Rules)
+  static Future<Map<String, dynamic>> getUserCourseStats() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      return {
+        'saved_ids': <String>[],
+        'in_progress_ids': <String>[],
+        'finished_ids': <String>[],
+      };
+    }
+
+    try {
+      final userDoc = await _firestore.collection('users').doc(user.uid).get();
+      final data = userDoc.data() ?? {};
+
+      final List<String> savedIds = List<String>.from(
+        (data['saved_courses'] as List<dynamic>?) ?? [],
+      );
+      final List<String> inProgressIds = List<String>.from(
+        (data['in_progress_courses'] as List<dynamic>?) ?? [],
+      );
+      final List<String> finishedIds = List<String>.from(
+        (data['finished_courses'] as List<dynamic>?) ?? [],
+      );
+
+      return {
+        'saved_ids': savedIds,
+        'in_progress_ids': inProgressIds,
+        'finished_ids': finishedIds,
+      };
+    } catch (e) {
+      print('Error getting user course stats: $e');
+      return {
+        'saved_ids': <String>[],
+        'in_progress_ids': <String>[],
+        'finished_ids': <String>[],
+      };
+    }
+  }
+
   static Future<List<Map<String, dynamic>>> getAllProducts() async {
     try {
       QuerySnapshot querySnapshot =
-      await _firestore
-          .collection('products')
-          .get();
+          await _firestore.collection('products').get();
 
       return querySnapshot.docs.map((doc) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
@@ -699,7 +894,7 @@ class FirebaseService {
   static Future<Map<String, dynamic>?> getProductById(String productId) async {
     try {
       DocumentSnapshot doc =
-      await _firestore.collection('products').doc(productId).get();
+          await _firestore.collection('products').doc(productId).get();
 
       if (doc.exists) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
@@ -715,9 +910,7 @@ class FirebaseService {
   static Future<List<Map<String, dynamic>>> getAllArticles() async {
     try {
       QuerySnapshot querySnapshot =
-      await _firestore
-          .collection('articles')
-          .get();
+          await _firestore.collection('articles').get();
 
       return querySnapshot.docs.map((doc) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
@@ -732,7 +925,7 @@ class FirebaseService {
   static Future<Map<String, dynamic>?> getArticleById(String articleId) async {
     try {
       DocumentSnapshot doc =
-      await _firestore.collection('articles').doc(articleId).get();
+          await _firestore.collection('articles').doc(articleId).get();
 
       if (doc.exists) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
@@ -769,7 +962,8 @@ class FirebaseService {
           activeUntil = now.add(const Duration(days: 90));
         } else if (duration.contains('6')) {
           activeUntil = now.add(const Duration(days: 180));
-        } else if (duration.contains('12') || duration.toLowerCase().contains('year')) {
+        } else if (duration.contains('12') ||
+            duration.toLowerCase().contains('year')) {
           activeUntil = now.add(const Duration(days: 365));
         }
       }
@@ -784,7 +978,10 @@ class FirebaseService {
         // 2. Immediately cache in SharedPreferences
         await prefs.setBool('is_premium_${user.uid}', value);
         await prefs.setString('subscription_tier_${user.uid}', tier);
-        await prefs.setString('subscription_active_until_${user.uid}', activeUntil.toIso8601String());
+        await prefs.setString(
+          'subscription_active_until_${user.uid}',
+          activeUntil.toIso8601String(),
+        );
 
         final updateData = {
           'is_premium': value,
@@ -799,13 +996,19 @@ class FirebaseService {
           await _firestore.collection('users').doc(user.uid).update(updateData);
         } catch (firestoreError) {
           print('Error updating premium status in firestore: $firestoreError');
-          await _firestore.collection('users').doc(user.uid).set(updateData, SetOptions(merge: true));
+          await _firestore
+              .collection('users')
+              .doc(user.uid)
+              .set(updateData, SetOptions(merge: true));
         }
       } else {
         // Fallback for guest testing
         await prefs.setBool('is_premium_local', value);
         await prefs.setString('subscription_tier_local', tier);
-        await prefs.setString('subscription_active_until_local', activeUntil.toIso8601String());
+        await prefs.setString(
+          'subscription_active_until_local',
+          activeUntil.toIso8601String(),
+        );
       }
 
       return true;
@@ -815,4 +1018,3 @@ class FirebaseService {
     }
   }
 }
-
